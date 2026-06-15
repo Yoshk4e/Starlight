@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Libraries/">
+    <Project Path="Libraries/Common/Common.csproj" />
+  </Folder>
+  <Folder Name="/Servers/">
+    <Project Path="Source/Starlight.Game/Starlight.Game.csproj" />
+    <Project Path="Source/Starlight.SDK/Starlight.SDK.csproj" />
+  </Folder>
+  <Project Path="Source/Starlight/Starlight.csproj" />
+</Solution>

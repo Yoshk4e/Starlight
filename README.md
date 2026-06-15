@@ -1,0 +1,14 @@
+# Starlight
+
+The next-generation of *a certain anime game*'s reimplementation.
+
+## See Other
+
+- https://github.com/ys4e/ys-kcp - Modified version of [skywind3000/kcp](https://github.com/skywind3000/kcp) to be compatible with *a certain anime game*.
+- https://github.com/kitkat-multiverse - Collection of *a certain anime game*'s protocol definitions.
+- https://github.com/wkavenger/hk4e-api - Reference source code for `Starlight.SDK`.
+- https://github.com/Grasscutters/Grasscutter - Reference source code for `Starlight.Game`.
+
+---
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

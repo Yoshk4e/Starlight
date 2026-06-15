@@ -51,15 +51,6 @@ internal static class Program
     /// <param name="args">Command line arguments.</param>
     private static async Task<int> Main(string[] args)
     {
-        Config.Load();
-
-        LogLevel.MinimumLevel = Enum.TryParse<LogEventLevel>(
-            Config.LogLevel,
-            ignoreCase: true,
-            out var level)
-            ? level
-            : LogEventLevel.Information;
-
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .MinimumLevel.ControlledBy(LogLevel)
@@ -75,9 +66,11 @@ internal static class Program
                 outputTemplate: LoggerFileTemplate,
                 restrictedToMinimumLevel: LogEventLevel.Information)
             .CreateLogger();
-
         Log.Information("Starting Starlight...");
-
+        
+        Config.Load();
+        LogLevel.MinimumLevel = Config.LogLevel;
+        
         try
         {
             var builder = Host.CreateApplicationBuilder(args);

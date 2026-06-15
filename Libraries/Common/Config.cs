@@ -1,16 +1,23 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
+using Serilog;
+using Serilog.Events;
 
 namespace Common.Config;
 
 public static class Config
 {
-    public static string LogLevel { get; private set; } = "Information";
+    public static LogEventLevel LogLevel { get; private set; } = LogEventLevel.Information;
     public static ServerConfig Server { get; private set; } = new();
 
     public static void Load(string path = "config.json")
     {
-        if (!File.Exists(path))
+        // Docker containers generally want a read-only system.
+        //
+        // Usually we use environment variables in that context anyway,
+        // so in those cases we forgo writing a JSON file.
+        if (!Env.IsContainerized && !File.Exists(path))
         {
             WriteDefaultConfig(path);
         }
@@ -20,7 +27,13 @@ public static class Config
             .AddJsonFile(path, optional: false, reloadOnChange: true)
             .AddEnvironmentVariables("SL__")
             .Build()
-            .Get<StarlightConfig>() ?? new();
+            .Get<StarlightConfig>();
+
+        if (cfg is null)
+        {
+            Log.Warning("Failed to parse configuration, please check for invalid values!");
+            cfg = new StarlightConfig();
+        }
 
         LogLevel = cfg.LogLevel;
         Server = cfg.Server;
@@ -31,11 +44,7 @@ public static class Config
         var defaults = new StarlightConfig();
 
         var json = JsonSerializer.Serialize(
-            defaults,
-            new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            defaults, Constants.JsonOptions);
 
         File.WriteAllText(path, json);
     }
@@ -43,7 +52,8 @@ public static class Config
 
 public sealed class StarlightConfig
 {
-    public string LogLevel { get; set; } = "Information";
+    [JsonConverter(typeof(JsonStringEnumConverter<LogEventLevel>))]
+    public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
     public ServerConfig Server { get; set; } = new();
 }
 

@@ -76,7 +76,8 @@ internal static class Program
             var builder = Host.CreateApplicationBuilder(args);
 
             builder.Services
-                .AddSerilog();
+                .AddSerilog()
+                .AddSingleton(_ => Config.Instance);
 
             builder.Services
                 .AddHostedService<GateServerService>()

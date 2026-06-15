@@ -8,8 +8,12 @@ namespace Common.Config;
 
 public static class Config
 {
-    public static LogEventLevel LogLevel { get; private set; } = LogEventLevel.Information;
-    public static ServerConfig Server { get; private set; } = new();
+    /// Please avoid as much as possible. Use this as a last-resort where
+    /// dependency injection falls through.
+    public static StarlightConfig Instance { get; private set; } = new();
+
+    public static LogEventLevel LogLevel => Instance.LogLevel;
+    public static ServerConfig Server => Instance.Server;
 
     public static void Load(string path = "config.json")
     {
@@ -35,17 +39,12 @@ public static class Config
             cfg = new StarlightConfig();
         }
 
-        LogLevel = cfg.LogLevel;
-        Server = cfg.Server;
+        Instance = cfg;
     }
 
     private static void WriteDefaultConfig(string path)
     {
-        var defaults = new StarlightConfig();
-
-        var json = JsonSerializer.Serialize(
-            defaults, Constants.JsonOptions);
-
+        var json = JsonSerializer.Serialize(Instance, Constants.JsonOptions);
         File.WriteAllText(path, json);
     }
 }

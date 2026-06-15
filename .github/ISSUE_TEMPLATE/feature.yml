@@ -1,0 +1,49 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "feat: "
+labels: ["type: feature"]
+
+body:
+    - type: textarea
+      id: summary
+      attributes:
+          label: Summary
+          description: Brief description of the feature
+      validations:
+          required: true
+
+    - type: textarea
+      id: motivation
+      attributes:
+          label: Motivation
+          description: Why is this needed? What problem does it solve?
+      validations:
+          required: true
+
+    - type: textarea
+      id: solution
+      attributes:
+          label: Proposed Solution
+          description: Describe your approach
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives Considered
+          description: Any other approaches?
+
+    - type: textarea
+      id: impact
+      attributes:
+          label: Impact
+          description: |
+              - Affected repositories/modules
+              - Breaking changes
+              - Performance considerations
+
+    - type: textarea
+      id: additional
+      attributes:
+          label: Additional Context

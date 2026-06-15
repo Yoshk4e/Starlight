@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Microsoft.Extensions.Configuration;
+using Common.Config;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -44,16 +44,25 @@ internal static class Program
     });
     
     #endregion
-    
+
     /// <summary>
     /// Console entry point.
     /// </summary>
     /// <param name="args">Command line arguments.</param>
     private static async Task<int> Main(string[] args)
     {
+        Config.Load();
+
+        LogLevel.MinimumLevel = Enum.TryParse<LogEventLevel>(
+            Config.LogLevel,
+            ignoreCase: true,
+            out var level)
+            ? level
+            : LogEventLevel.Information;
+
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .MinimumLevel.ControlledBy(LogLevel) // TODO: Make configurable in configuration & at runtime.
+            .MinimumLevel.ControlledBy(LogLevel)
             .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.Extensions.Hosting", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.AspNetCore", HttpLogLevel)
@@ -66,24 +75,20 @@ internal static class Program
                 outputTemplate: LoggerFileTemplate,
                 restrictedToMinimumLevel: LogEventLevel.Information)
             .CreateLogger();
+
         Log.Information("Starting Starlight...");
 
         try
         {
-            var builder = Host.CreateApplicationBuilder(args) ;
-
-            // Resolve configuration.
-            builder.Configuration
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("config.json", optional: true, reloadOnChange: true)
-                .AddEnvironmentVariables("SL__");
+            var builder = Host.CreateApplicationBuilder(args);
 
             builder.Services
                 .AddSerilog();
+
             builder.Services
                 .AddHostedService<GateServerService>()
                 .AddHostedService<HttpServerService>();
-            
+
             // Prepare the application.
             var app = builder.Build();
 

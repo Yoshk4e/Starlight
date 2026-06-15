@@ -1,3 +1,4 @@
+using Common.Config;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -12,7 +13,7 @@ public sealed class HttpServerService : BackgroundService
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSerilog();
-        builder.WebHost.UseUrls("http://0.0.0.0:8080");
+        builder.WebHost.UseUrls($"http://{Config.Server.Http.BindAddress}:{Config.Server.Http.BindPort}");
 
         var app = builder.Build();
 

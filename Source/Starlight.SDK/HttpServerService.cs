@@ -13,11 +13,11 @@ public sealed class HttpServerService(StarlightConfig config) : BackgroundServic
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var builder = WebApplication.CreateBuilder();
-        
+
         builder.Services
             .AddSerilog()
             .AddSingleton(_ => config);
-        
+
         // NOTE: If you wish to use SSL, do so behind a reverse proxy.
         builder.WebHost.UseUrls($"http://{config.Server.Http.BindAddress}:{config.Server.Http.BindPort}");
 

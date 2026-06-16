@@ -14,6 +14,7 @@ public static class DatabaseServiceCollectionExtensions
 
         services.AddSingleton(options);
         services.AddSingleton<StarlightDatabase>();
+
         services.AddSingleton<IStarlightDatabase>(sp => {
             var database = sp.GetRequiredService<StarlightDatabase>();
             Database.Instance = database;
@@ -24,7 +25,11 @@ public static class DatabaseServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddStarlightDatabase(this IServiceCollection services, SqliteConfig config, params Assembly[] modelAssemblies)
+    public static IServiceCollection AddStarlightDatabase(
+        this IServiceCollection services,
+        SqliteConfig config,
+        params Assembly[] modelAssemblies
+    )
     {
         return services.AddStarlightDatabase(options => {
             options.Path = config.Path;
@@ -35,7 +40,9 @@ public static class DatabaseServiceCollectionExtensions
             options.AllowClientEvaluation = config.AllowClientEvaluation;
 
             foreach (var assembly in modelAssemblies.Distinct())
+            {
                 options.ModelAssemblies.Add(assembly);
+            }
         });
     }
 }

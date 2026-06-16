@@ -19,7 +19,7 @@ public sealed class DirectRpcTransport : RpcTransport
         {
             handlers.Add(handler);
         }
-        
+
         return Task.FromResult<IDisposable>(new Subscription(handlers, handler));
     }
 
@@ -28,10 +28,12 @@ public sealed class DirectRpcTransport : RpcTransport
         if (_handlers.TryGetValue(subject, out var handlers))
         {
             List<AsyncDataHandler> snapshot;
+
             lock (handlers)
             {
                 snapshot = [.. handlers];
             }
+
             foreach (var handler in snapshot)
             {
                 await handler(message);

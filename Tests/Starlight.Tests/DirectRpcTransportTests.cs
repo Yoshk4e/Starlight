@@ -15,8 +15,7 @@ public sealed class DirectRpcTransportTests
         var payload = new byte[] { 1, 2, 3 };
         RpcMessage? received = null;
 
-        await transport.Subscribe(Subject, msg =>
-        {
+        await transport.Subscribe(Subject, msg => {
             received = msg;
             return Task.CompletedTask;
         });
@@ -33,12 +32,19 @@ public sealed class DirectRpcTransportTests
         var transport = new DirectRpcTransport();
         var count = 0;
 
-        await transport.Subscribe(Subject, _ => { Interlocked.Increment(ref count); return Task.CompletedTask; });
-        await transport.Subscribe(Subject, _ => { Interlocked.Increment(ref count); return Task.CompletedTask; });
+        await transport.Subscribe(Subject, _ => {
+            Interlocked.Increment(ref count);
+            return Task.CompletedTask;
+        });
+
+        await transport.Subscribe(Subject, _ => {
+            Interlocked.Increment(ref count);
+            return Task.CompletedTask;
+        });
 
         await transport.Publish(Subject, new RpcMessage([]));
 
-        Assert.Equal(2, count);
+        Assert.Equal(expected: 2, count);
     }
 
     [Fact]
@@ -55,7 +61,10 @@ public sealed class DirectRpcTransportTests
         var transport = new DirectRpcTransport();
         var received = false;
 
-        await transport.Subscribe(Subject, _ => { received = true; return Task.CompletedTask; });
+        await transport.Subscribe(Subject, _ => {
+            received = true;
+            return Task.CompletedTask;
+        });
 
         await transport.Publish("other.subject", new RpcMessage([]));
 
@@ -68,8 +77,7 @@ public sealed class DirectRpcTransportTests
         var transport = new DirectRpcTransport();
         var count = 0;
 
-        var subscription = await transport.Subscribe(Subject, _ =>
-        {
+        var subscription = await transport.Subscribe(Subject, _ => {
             Interlocked.Increment(ref count);
             return Task.CompletedTask;
         });
@@ -78,7 +86,7 @@ public sealed class DirectRpcTransportTests
         subscription.Dispose();
         await transport.Publish(Subject, new RpcMessage([]));
 
-        Assert.Equal(1, count);
+        Assert.Equal(expected: 1, count);
     }
 
     [Fact]
@@ -88,8 +96,7 @@ public sealed class DirectRpcTransportTests
         var sent = new StringValue { Value = "hello" };
         StringValue? received = null;
 
-        await transport.Subscribe<StringValue>(Subject, msg =>
-        {
+        await transport.Subscribe<StringValue>(Subject, msg => {
             received = msg;
             return Task.CompletedTask;
         });
@@ -106,8 +113,7 @@ public sealed class DirectRpcTransportTests
     {
         var transport = new DirectRpcTransport();
 
-        await transport.Subscribe(Subject, async msg =>
-        {
+        await transport.Subscribe(Subject, async msg => {
             var request = msg.Deserialize<StringValue>();
             await msg.Reply(new StringValue { Value = $"echo:{request.Value}" });
         });

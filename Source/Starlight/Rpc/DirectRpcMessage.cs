@@ -9,7 +9,7 @@ public sealed class DirectRpcMessage : RpcMessage
     {
         Metadata = message;
     }
-    
+
     public override T? TryDeserialize<T>() where T : default
     {
         // For direct messages, we can hide the underlying struct

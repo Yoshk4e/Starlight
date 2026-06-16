@@ -41,9 +41,11 @@ public sealed class KcpServer : IDisposable
     private async Task UpdateLoopAsync(CancellationToken ct)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(10));
+
         while (await timer.WaitForNextTickAsync(ct))
         {
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
             foreach (var (key, conn) in _connections)
             {
                 conn.Update(now);
@@ -56,9 +58,9 @@ public sealed class KcpServer : IDisposable
     {
         if (data.Length < 8) return;
 
-        var conv  = BitConverter.ToInt32(data, 0);
-        var token = BitConverter.ToInt32(data, 4);
-        var key   = (conv, token);
+        var conv = BitConverter.ToInt32(data, startIndex: 0);
+        var token = BitConverter.ToInt32(data, startIndex: 4);
+        var key = (conv, token);
 
         if (!_connections.TryGetValue(key, out var conn))
         {

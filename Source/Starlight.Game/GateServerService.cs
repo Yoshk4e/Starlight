@@ -6,13 +6,15 @@ using Starlight.Kcp;
 namespace Starlight.Game;
 
 public sealed class GateServerService(
-    ILogger<GateServerService> logger) : BackgroundService
+    ILogger<GateServerService> logger
+) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
             var handler = new GateServerHandler(logger);
+
             var server = new KcpServer(
                 Config.Server.Game.BindAddress,
                 Config.Server.Game.BindPort,
@@ -21,7 +23,7 @@ public sealed class GateServerService(
             logger.LogInformation("Starting GameServer at {Address}:{Port}",
                 Config.Server.Game.BindAddress,
                 Config.Server.Game.BindPort);
-            
+
             await server.RunAsync(stoppingToken);
         }
         catch (Exception e)

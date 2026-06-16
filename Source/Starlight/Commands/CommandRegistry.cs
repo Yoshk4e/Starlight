@@ -4,9 +4,9 @@ namespace Starlight;
 
 public sealed class CommandRegistry(IEnumerable<ICommand> commands)
 {
-    private readonly Dictionary<string, ICommand> _commands = 
+    private readonly Dictionary<string, ICommand> _commands =
         commands
-            .SelectMany(command => 
+            .SelectMany(command =>
                 new[] { command.Name }
                     .Concat(command.Aliases)
                     .Select(name => new { name, command }))

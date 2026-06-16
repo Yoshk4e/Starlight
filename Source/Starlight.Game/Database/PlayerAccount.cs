@@ -5,7 +5,8 @@ namespace Starlight.Game.Database;
 
 [DbTable("player_accounts")]
 [DbIndex("ix_player_accounts_uid", nameof(Uid), IsUnique = true)]
-[DbIndex("ix_player_accounts_username", nameof(Username), IsUnique = true)] // Username as in the account username we put in Login, not the display name. Display name is not unique.
+[DbIndex("ix_player_accounts_username", nameof(Username),
+    IsUnique = true)] // Username as in the account username we put in Login, not the display name. Display name is not unique.
 public sealed class PlayerAccount : TrackableEntity
 {
     private long _id;
@@ -86,6 +87,7 @@ public sealed class PlayerAccount : TrackableEntity
     public static PlayerAccount Create(uint uid, string username, string? email = null)
     {
         var now = DateTimeOffset.UtcNow;
+
         return new PlayerAccount {
             Uid = uid,
             Username = username,
@@ -105,6 +107,7 @@ public sealed class PlayerAccount : TrackableEntity
     public bool RemoveMetadata(string key)
     {
         var removed = Metadata.Remove(key);
+
         if (!removed)
             return false;
 

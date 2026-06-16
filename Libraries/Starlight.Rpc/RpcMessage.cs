@@ -7,15 +7,15 @@ namespace Starlight.Rpc;
 public class RpcMessage(byte[] payload)
 {
     private static readonly RpcMessage Empty = new([]);
-    
+
     /// Allows converting byte payloads into messages.
     public static implicit operator RpcMessage(byte[] payload) => new(payload);
-    
+
     public byte[] Payload => payload;
 
     public string? ReplySubject { protected get; set; }
     public RpcTransport? Transport { protected get; set; }
-    
+
     public object? Metadata;
 
     /// <summary>
@@ -26,7 +26,7 @@ public class RpcMessage(byte[] payload)
     /// <exception cref="Exception">If the message doesn't have a parser.</exception>
     public virtual T? TryDeserialize<T>() where T : IMessage<T>
     {
-        var parser = (MessageParser<T>?) typeof(T)
+        var parser = (MessageParser<T>?)typeof(T)
             .GetProperty("Parser")?
             .GetValue(null);
 
@@ -67,7 +67,7 @@ public class RpcMessage(byte[] payload)
         {
             throw new NullReferenceException("Message is not configured with reply values.");
         }
-        
+
         await Transport.Publish(ReplySubject, reply as IMessage ?? new Empty());
     }
 }

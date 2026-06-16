@@ -1,4 +1,5 @@
 ﻿// KcpConnection.cs
+
 using System.Net;
 using Starlight.Kcp.Internals;
 
@@ -20,8 +21,8 @@ public sealed class KcpConnection
         Remote = remote;
         _handler = handler;
         _send = send;
-        _kcp = new KCP(conv, token, stream: false, sink: new WriterAdapter(this));
-        _kcp.SetNodelay(true, 10, 2, true);
+        _kcp = new KCP(conv, token, stream: false, new WriterAdapter(this));
+        _kcp.SetNodelay(nodelay: true, interval: 10, resend: 2, nc: true);
     }
 
     public void Send(byte[] data) => _kcp.Send(data);
@@ -32,10 +33,12 @@ public sealed class KcpConnection
         if (result.IsFailure) return;
 
         var buf = new byte[65536];
+
         while (true)
         {
             var recv = _kcp.Recv(buf);
             if (recv.IsFailure) break;
+
             _handler.OnReceive(this, buf[..recv.Value]);
         }
     }

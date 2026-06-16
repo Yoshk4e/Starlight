@@ -5,7 +5,6 @@ using Starlight.Common;
 namespace Starlight.Rpc;
 
 public delegate Task AsyncDataHandler(RpcMessage message);
-
 public delegate Task AsyncMessageHandler<in T>(T message) where T : IMessage;
 
 /// <summary>
@@ -44,7 +43,7 @@ public abstract class RpcTransport : IHostedService
     /// return <c>true</c> so that requests fall back to the timeout behaviour.
     /// </summary>
     protected virtual bool HasResponders(string subject) => true;
-    
+
     public virtual Task Publish(string subject, IMessage message)
         => Publish(subject, Serialize(message));
 
@@ -59,7 +58,7 @@ public abstract class RpcTransport : IHostedService
     public virtual Task<IDisposable> Subscribe<T>(string subject, AsyncMessageHandler<T> handler) where T : IMessage<T>
     {
         return Subscribe(subject, ActivityListener);
-        
+
         async Task ActivityListener(RpcMessage message)
         {
             if (message.TryDeserialize<T>() is {} deserialized)
@@ -81,8 +80,10 @@ public abstract class RpcTransport : IHostedService
     /// <typeparam name="TResponse">The protobuf message type for the response.</typeparam>
     /// <returns>The response data, deserialized.</returns>
     public virtual async Task<TResponse> Request<TRequest, TResponse>(
-        string subject, TRequest request,
-        TimeSpan? timeout = null)
+        string subject,
+        TRequest request,
+        TimeSpan? timeout = null
+    )
         where TRequest : IMessage<TRequest>
         where TResponse : IMessage<TResponse>
     {
@@ -102,16 +103,18 @@ public abstract class RpcTransport : IHostedService
 
         // Subscribe to the reply subject.
         var tcs = new TaskCompletionSource<RpcMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         var subscription = await Subscribe(replySubject, msg => {
             tcs.TrySetResult(msg);
             return Task.CompletedTask;
         });
-        
+
         // Send the request.
         await Publish(subject, message);
 
         // Wait for the specified interval before timing out.
         RpcMessage reply;
+
         try
         {
             reply = await tcs.Task.WaitAsync(timeout.Value);
@@ -128,7 +131,7 @@ public abstract class RpcTransport : IHostedService
         // Deserialize the response.
         return reply.Deserialize<TResponse>();
     }
-    
+
     #region Lifecycle
 
     public abstract Task StartAsync(CancellationToken cancellationToken);

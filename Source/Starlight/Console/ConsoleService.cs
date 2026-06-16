@@ -5,7 +5,8 @@ namespace Starlight.Console;
 
 public sealed class ConsoleService(
     CommandRegistry registry,
-    IHostApplicationLifetime lifetime) : BackgroundService
+    IHostApplicationLifetime lifetime
+) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -18,7 +19,7 @@ public sealed class ConsoleService(
             if (string.IsNullOrWhiteSpace(input))
                 continue;
 
-            var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var parts = input.Split(separator: ' ', StringSplitOptions.RemoveEmptyEntries);
             var name = parts[0];
             var args = parts[1..];
 

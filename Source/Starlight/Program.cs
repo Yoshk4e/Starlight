@@ -21,13 +21,13 @@ internal static class Program
 
     #region Logger
 
-    public static readonly LoggingLevelSwitch 
-        LogLevel = new(), 
+    public static readonly LoggingLevelSwitch
+        LogLevel = new(),
         HttpLogLevel = new(LogEventLevel.Warning);
-    
+
     private const string LoggerConsoleTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss} « {Level:u3} » {Message:lj}{NewLine}{Exception}";
     private const string LoggerFileTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss} « {Level:u3} » {Message:lj}{NewLine}";
-    
+
     private static readonly AnsiConsoleTheme LoggerTheme = new(new Dictionary<ConsoleThemeStyle, string> {
         [ConsoleThemeStyle.Text] = "\e[38;5;0015m",
         [ConsoleThemeStyle.SecondaryText] = "\e[38;5;0007m",
@@ -40,13 +40,13 @@ internal static class Program
         [ConsoleThemeStyle.Boolean] = "\e[38;5;0027m",
         [ConsoleThemeStyle.Scalar] = "\e[38;5;0085m",
         [ConsoleThemeStyle.LevelVerbose] = "\e[38;5;0007m",
-        [ConsoleThemeStyle.LevelDebug] = "\e[38;5;218m", 
+        [ConsoleThemeStyle.LevelDebug] = "\e[38;5;218m",
         [ConsoleThemeStyle.LevelInformation] = "\e[38;5;120m",
         [ConsoleThemeStyle.LevelWarning] = "\e[38;5;216m",
         [ConsoleThemeStyle.LevelError] = "\e[38;5;210m",
         [ConsoleThemeStyle.LevelFatal] = "\e[38;5;0015m\e[48;5;0196m"
     });
-    
+
     #endregion
 
     /// <summary>
@@ -65,16 +65,16 @@ internal static class Program
                 outputTemplate: LoggerConsoleTemplate,
                 theme: LoggerTheme)
             .WriteTo.File(
-                path: "logs/latest.log",
+                "logs/latest.log",
                 rollingInterval: RollingInterval.Day,
                 outputTemplate: LoggerFileTemplate,
                 restrictedToMinimumLevel: LogEventLevel.Information)
             .CreateLogger();
         Log.Information("Starting Starlight...");
-        
+
         Config.Load();
         LogLevel.MinimumLevel = Config.LogLevel;
-        
+
         try
         {
             var builder = Host.CreateApplicationBuilder(args);

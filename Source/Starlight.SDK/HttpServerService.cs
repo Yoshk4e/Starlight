@@ -1,10 +1,8 @@
 using Starlight.Common;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Starlight.Database.DependencyInjection;
 using Starlight.SDK.Crypto;
@@ -15,37 +13,6 @@ using Starlight.SDK.Services;
 
 namespace Starlight.SDK;
 
-public sealed class HttpServerService(
-    StarlightConfig config,
-    IServiceProvider rootProvider)
-    : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        var builder = WebApplication.CreateBuilder();
-
-        builder.Services
-            .AddSerilog()
-            .AddSingleton(_ => config)
-            .AddSingleton(rootProvider.GetRequiredService<IAccountRepository>())
-            .AddSingleton(rootProvider.GetRequiredService<IAuthService>())
-            .AddSingleton(rootProvider.GetRequiredService<SdkConfig>());
-
-        // NOTE: If you wish to use SSL, do so behind a reverse proxy.
-        builder.WebHost.UseUrls($"http://{config.Server.Http.BindAddress}:{config.Server.Http.BindPort}");
-
-        var app = builder.Build();
-
-        app.MapGet("/", () => Results.Ok("Starlight"));
-
-
-        app.MapShieldEndpoints();
-        app.MapComboGranterEndpoints();
-
-        await app.RunAsync(stoppingToken);
-    }
-}
-
 public static class ServiceExtensions
 {
     public static IServiceCollection AddSdkServer(this IServiceCollection collection, StarlightConfig config)
@@ -55,7 +22,7 @@ public static class ServiceExtensions
         {
             case ProviderType.Sqlite:
                 {
-                    collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(HttpServerService).Assembly);
+                    collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(ServiceExtensions).Assembly);
                     collection.AddSingleton<IAccountRepository, SqliteAccountRepository>();
                     break;
                 }
@@ -71,13 +38,11 @@ public static class ServiceExtensions
         collection.AddSingleton<RsaCrypto?>(_ => {
             if (string.IsNullOrWhiteSpace(sdkCfg.PasswordRsaKeyPath))
                 return null;
-
             if (!File.Exists(sdkCfg.PasswordRsaKeyPath))
             {
                 Log.Warning("Configured SDK password RSA key not found at {Path}", sdkCfg.PasswordRsaKeyPath);
                 return null;
             }
-
             try
             {
                 return RsaCrypto.FromPkcs8File(sdkCfg.PasswordRsaKeyPath);
@@ -90,8 +55,14 @@ public static class ServiceExtensions
         });
 
         collection.AddSingleton<IAuthService, AuthService>();
-        collection.AddHostedService<HttpServerService>();
-
         return collection;
+    }
+
+    public static IEndpointRouteBuilder MapSdkServer(this IEndpointRouteBuilder app)
+    {
+        app.MapGet("/", () => Results.Ok("Starlight"));
+        app.MapShieldEndpoints();
+        app.MapComboGranterEndpoints();
+        return app;
     }
 }

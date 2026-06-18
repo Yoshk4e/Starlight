@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -14,6 +14,7 @@ public static class Config
 
     public static LogEventLevel LogLevel => Instance.LogLevel;
     public static ExternalResources Resources => Instance.Resources;
+    [Obsolete]
     public static ServerConfig Server => Instance.Server;
     public static DatabaseConfig Database => Instance.Database;
 
@@ -56,6 +57,7 @@ public sealed class StarlightConfig
     [JsonConverter(typeof(JsonStringEnumConverter<LogEventLevel>))]
     public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
     public ExternalResources Resources { get; set; } = new();
+    [Obsolete]
     public ServerConfig Server { get; set; } = new();
     public DatabaseConfig Database { get; set; } = new();
 }
@@ -65,15 +67,22 @@ public sealed class ExternalResources
     public string ResourcesPath { get; set; } = "./resources.zip";
 }
 
+[Obsolete]
 public sealed class ServerConfig
 {
+    [Obsolete]
     public GameConfig Game { get; set; } = new();
-    public HttpConfig Http { get; set; } = new();
-    public SdkConfig Sdk { get; set; } = new();
 }
 
 public sealed class SdkConfig
 {
+    /// HTTP server bind address.
+    /// <br/>
+    /// Use <code>0.0.0.0</code> to bind on all addresses.
+    public string BindAddress { get; set; } = "0.0.0.0";
+    /// HTTP server bind port.
+    public int BindPort { get; set; } = 8080;
+
     /// <summary>
     /// Shared HMAC-SHA256 key used to verify <c>sign</c> on the combo
     /// granter login endpoint. Must match the value the client was built
@@ -118,12 +127,6 @@ public sealed class DatabaseConfig
 {
     public string ConnectionString { get; set; } = "sqlite:./data/starlight.db";
     public SqliteConfig Sqlite { get; set; } = new();
-}
-
-public sealed class HttpConfig
-{
-    public string BindAddress { get; set; } = "0.0.0.0";
-    public int BindPort { get; set; } = 8080;
 }
 
 public sealed class GameConfig

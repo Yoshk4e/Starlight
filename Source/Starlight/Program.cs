@@ -91,8 +91,9 @@ internal static class Program
                 .AddCommands()
                 .AddHostedService(s => s.GetRequiredService<RpcTransport>())
                 .AddDbGate(Config.Instance)
-                .AddSdkServer(Config.Instance)
                 .AddHostedService<GateServerService>();
+
+            builder.AddSdkServer();
 
             // Prepare the application.
             var app = builder.Build();

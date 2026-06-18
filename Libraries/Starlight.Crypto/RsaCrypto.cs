@@ -8,12 +8,18 @@ namespace Starlight.Crypto;
 /// </summary>
 public sealed class RsaCrypto
 {
+    public static readonly RsaCrypto Noop = new([]);
+
     private readonly RSA _privateKey;
 
     public RsaCrypto(byte[] pkcs8PrivateKey)
     {
         _privateKey = RSA.Create();
-        _privateKey.ImportPkcs8PrivateKey(pkcs8PrivateKey, out _);
+
+        if (pkcs8PrivateKey.Length > 0)
+        {
+            _privateKey.ImportPkcs8PrivateKey(pkcs8PrivateKey, out _);
+        }
     }
 
     /// <summary>

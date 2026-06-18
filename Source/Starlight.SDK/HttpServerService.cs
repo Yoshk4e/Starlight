@@ -35,14 +35,14 @@ public static class ServiceExtensions
 
         // Load the password decryption key lazily, it's only needed when a
         // client sends is_crypto=true, and absence shouldn't crash the host.
-        collection.AddSingleton<RsaCrypto?>(_ => {
+        collection.AddSingleton<RsaCrypto>(_ => {
             if (string.IsNullOrWhiteSpace(sdkCfg.PasswordRsaKeyPath))
-                return null;
+                return RsaCrypto.Noop;
 
             if (!File.Exists(sdkCfg.PasswordRsaKeyPath))
             {
                 Log.Warning("Configured SDK password RSA key not found at {Path}", sdkCfg.PasswordRsaKeyPath);
-                return null;
+                return RsaCrypto.Noop;
             }
 
             try
@@ -52,7 +52,7 @@ public static class ServiceExtensions
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to load SDK password RSA key");
-                return null;
+                return RsaCrypto.Noop;
             }
         });
 

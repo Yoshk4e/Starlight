@@ -13,8 +13,8 @@ public interface IAccountRepository
     Task<Account?> GetAccountBySessionTokenAsync(string token, CancellationToken ct);
 
     /// <summary>
-    /// Persists the rotating fields (session token, combo token, device id)
-    /// after an auth operation succeeds.
+    /// Persists the rotating fields (session token, combo token, known
+    /// device ids) after an auth operation succeeds.
     /// </summary>
     Task UpdateSessionAsync(Account account, CancellationToken ct);
 }

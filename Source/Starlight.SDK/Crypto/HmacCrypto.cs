@@ -28,14 +28,15 @@ public static class HmacCrypto
     /// Constant-time comparison of an expected signature against the value
     /// produced by hashing <paramref name="content"/> with <paramref name="key"/>.
     /// </summary>
-public static bool Verify(string content, string key, string expectedSignature)
-{
-    var computed = CreateHash(content, key);
+    public static bool Verify(string content, string key, string expectedSignature)
+    {
+        var computed = CreateHash(content, key);
 
-    if (expectedSignature.Length != computed.Length)
-        return false;
+        if (expectedSignature.Length != computed.Length)
+            return false;
 
-    return CryptographicOperations.FixedTimeEquals(
-        Encoding.ASCII.GetBytes(computed),
-        Encoding.ASCII.GetBytes(expectedSignature));
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.ASCII.GetBytes(computed),
+            Encoding.ASCII.GetBytes(expectedSignature));
+    }
 }

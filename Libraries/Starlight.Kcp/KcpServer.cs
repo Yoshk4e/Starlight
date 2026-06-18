@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
 
 namespace Starlight.Kcp;
@@ -56,9 +56,9 @@ public sealed class KcpServer : IDisposable
     {
         if (data.Length < 8) return;
 
-        var conv  = BitConverter.ToInt32(data, 0);
+        var conv = BitConverter.ToInt32(data, 0);
         var token = BitConverter.ToInt32(data, 4);
-        var key   = (conv, token);
+        var key = (conv, token);
 
         if (!_connections.TryGetValue(key, out var conn))
         {

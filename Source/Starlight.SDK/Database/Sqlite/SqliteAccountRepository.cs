@@ -33,11 +33,13 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
 
         entity.SessionToken = account.SessionToken;
         entity.ComboToken = account.ComboToken;
-        entity.CurrentDeviceId = account.CurrentDeviceId;
+        entity.KnownDeviceIds = string.Join(DeviceIdDelimiter, account.KnownDeviceIds);
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);
     }
+
+    private const string DeviceIdDelimiter = "|";
 
     private static Account Map(AccountEntity entity) => new() {
         Id = entity.Id,
@@ -47,6 +49,8 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         PasswordTime = 0,
         SessionToken = entity.SessionToken ?? string.Empty,
         ComboToken = entity.ComboToken ?? string.Empty,
-        CurrentDeviceId = entity.CurrentDeviceId ?? string.Empty,
+        KnownDeviceIds = string.IsNullOrEmpty(entity.KnownDeviceIds)
+            ? []
+            : entity.KnownDeviceIds.Split(DeviceIdDelimiter, StringSplitOptions.RemoveEmptyEntries).ToList(),
     };
 }

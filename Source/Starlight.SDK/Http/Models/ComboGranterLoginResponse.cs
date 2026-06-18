@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace Starlight.SDK.Http.Models;
 
-
 public sealed class ComboGranterLoginResponse
 {
     [JsonPropertyName("combo_id")]

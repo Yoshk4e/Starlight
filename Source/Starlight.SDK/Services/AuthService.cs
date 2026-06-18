@@ -58,7 +58,7 @@ public sealed class AuthService(
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
         record.SessionToken = GenerateToken();
-        record.CurrentDeviceId = deviceId;
+        record.RegisterDevice(deviceId);
 
         await accounts.UpdateSessionAsync(record, ct);
         return AuthResult.Ok(record);
@@ -77,7 +77,7 @@ public sealed class AuthService(
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
         record.ComboToken = GenerateToken();
-        record.CurrentDeviceId = deviceId;
+        record.RegisterDevice(deviceId);
 
         await accounts.UpdateSessionAsync(record, ct);
         return AuthResult.Ok(record);

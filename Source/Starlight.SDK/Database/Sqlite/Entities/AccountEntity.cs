@@ -53,8 +53,11 @@ public sealed class AccountEntity : TrackableEntity
         set => Set(ref field, value);
     }
 
-    [DbColumn("current_device_id", MaxLength = 128)]
-    public string? CurrentDeviceId
+    /// <summary>
+    /// Pipe-delimited list of known device ids (see <see cref="Starlight.SDK.Database.Models.Account.KnownDeviceIds"/>).
+    /// </summary>
+    [DbColumn("known_device_ids", MaxLength = 768)]
+    public string? KnownDeviceIds
     {
         get;
         set => Set(ref field, value);

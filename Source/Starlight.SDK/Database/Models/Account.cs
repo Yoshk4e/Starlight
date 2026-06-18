@@ -7,6 +7,14 @@ namespace Starlight.SDK.Database.Models;
 /// </summary>
 public sealed class Account
 {
+    /// <summary>
+    /// Max number of device ids remembered per account. Oldest entries are
+    /// evicted once this is exceeded, so it bounds storage without forcing
+    /// a re-verification every time the player switches between a small
+    /// set of devices (e.g. mobile/PC).
+    /// </summary>
+    public const int MaxKnownDeviceIds = 5;
+
     public uint Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
@@ -31,8 +39,28 @@ public sealed class Account
     public string ComboToken { get; set; } = string.Empty;
 
     /// <summary>
-    /// Last device id seen on this account, set by both endpoints from the
-    /// <c>x-rpc-device_id</c> request header.
+    /// Device ids seen on this account (most-recently-used last), set by
+    /// both endpoints from the <c>x-rpc-device_id</c> request header. Kept
+    /// as a small set rather than a single value so switching between a
+    /// handful of known devices doesn't require re-verification each time.
     /// </summary>
-    public string CurrentDeviceId { get; set; } = string.Empty;
+    public List<string> KnownDeviceIds { get; set; } = [];
+
+    /// <summary>
+    /// Records <paramref name="deviceId"/> as seen on this account. If it's
+    /// already known it's just moved to the most-recently-used position;
+    /// otherwise it's appended and the oldest entry is evicted once
+    /// <see cref="MaxKnownDeviceIds"/> is exceeded.
+    /// </summary>
+    public void RegisterDevice(string deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId))
+            return;
+
+        KnownDeviceIds.Remove(deviceId);
+        KnownDeviceIds.Add(deviceId);
+
+        while (KnownDeviceIds.Count > MaxKnownDeviceIds)
+            KnownDeviceIds.RemoveAt(0);
+    }
 }

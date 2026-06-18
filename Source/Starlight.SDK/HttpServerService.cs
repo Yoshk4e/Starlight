@@ -29,7 +29,7 @@ public sealed class HttpServerService(
             .AddSingleton(_ => config)
             .AddSingleton(rootProvider.GetRequiredService<IAccountRepository>())
             .AddSingleton(rootProvider.GetRequiredService<IAuthService>())
-            .AddSingleton(rootProvider.GetRequiredService<SdkAuthOptions>());
+            .AddSingleton(rootProvider.GetRequiredService<SdkConfig>());
 
         // NOTE: If you wish to use SSL, do so behind a reverse proxy.
         builder.WebHost.UseUrls($"http://{config.Server.Http.BindAddress}:{config.Server.Http.BindPort}");
@@ -64,28 +64,23 @@ public static class ServiceExtensions
         }
 
         var sdkCfg = config.Server.Sdk;
-        var options = new SdkAuthOptions {
-            HmacKey = sdkCfg.HmacKey,
-            SkipSignatureCheck = sdkCfg.SkipSignatureCheck,
-            PasswordRsaKeyPath = sdkCfg.PasswordRsaKeyPath,
-        };
-        collection.AddSingleton(options);
+        collection.AddSingleton(sdkCfg);
 
         // Load the password decryption key lazily, it's only needed when a
         // client sends is_crypto=true, and absence shouldn't crash the host.
         collection.AddSingleton<RsaCrypto?>(_ => {
-            if (string.IsNullOrWhiteSpace(options.PasswordRsaKeyPath))
+            if (string.IsNullOrWhiteSpace(sdkCfg.PasswordRsaKeyPath))
                 return null;
 
-            if (!File.Exists(options.PasswordRsaKeyPath))
+            if (!File.Exists(sdkCfg.PasswordRsaKeyPath))
             {
-                Log.Warning("Configured SDK password RSA key not found at {Path}", options.PasswordRsaKeyPath);
+                Log.Warning("Configured SDK password RSA key not found at {Path}", sdkCfg.PasswordRsaKeyPath);
                 return null;
             }
 
             try
             {
-                return RsaCrypto.FromPkcs8File(options.PasswordRsaKeyPath);
+                return RsaCrypto.FromPkcs8File(sdkCfg.PasswordRsaKeyPath);
             }
             catch (Exception ex)
             {

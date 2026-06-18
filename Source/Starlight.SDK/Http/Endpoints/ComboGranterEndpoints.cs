@@ -4,13 +4,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.SDK.Crypto;
 using Starlight.SDK.Http.Models;
 using Starlight.SDK.Services;
 
 namespace Starlight.SDK.Http.Endpoints;
-
 
 public static class ComboGranterEndpoints
 {
@@ -33,7 +33,7 @@ public static class ComboGranterEndpoints
         [FromBody] ComboGranterLoginRequest body,
         [FromHeader(Name = "x-rpc-device_id")] string? deviceId,
         [FromServices] IAuthService auth,
-        [FromServices] SdkAuthOptions options,
+        [FromServices] SdkConfig sdkConfig,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
@@ -55,16 +55,16 @@ public static class ComboGranterEndpoints
 
         // HMAC signature verification, skipped only when explicitly disabled
         // (debug builds, integration tests).
-        if (!options.SkipSignatureCheck)
+        if (!sdkConfig.SkipSignatureCheck)
         {
-            if (string.IsNullOrEmpty(options.HmacKey))
+            if (string.IsNullOrEmpty(sdkConfig.HmacKey))
             {
                 logger.LogError("ComboGranter HMAC key is not configured but SkipSignatureCheck=false");
                 return Results.Ok(ApiResponse.From(Retcode.SystemError));
             }
 
             var canonical = CreateMessage(body);
-            if (!HmacCrypto.Verify(canonical, options.HmacKey, body.Sign!))
+            if (!HmacCrypto.Verify(canonical, sdkConfig.HmacKey, body.Sign!))
                 return Results.Ok(ApiResponse.From(Retcode.MissingConfiguration));
         }
 
@@ -117,12 +117,4 @@ public static class ComboGranterEndpoints
 
         return string.Join("&", pairs.Select(p => $"{p.Key}={p.Value}"));
     }
-}
-
-
-public sealed class SdkAuthOptions
-{
-    public string HmacKey { get; init; } = string.Empty;
-    public bool SkipSignatureCheck { get; init; }
-    public string? PasswordRsaKeyPath { get; init; }
 }

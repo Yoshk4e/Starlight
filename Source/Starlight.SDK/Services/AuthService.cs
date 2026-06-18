@@ -51,10 +51,7 @@ public sealed class AuthService(
         }
 
         var record = await accounts.GetAccountByUsernameAsync(account, ct);
-        if (record is null)
-            return AuthResult.Fail(Retcode.LoginInvalidAccount);
-
-        if (!Sha256Crypto.Verify(password, record.PasswordHash))
+        if (record is null || !Argon2Crypto.Verify(password, record.PasswordHash))
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
         record.SessionToken = GenerateToken();

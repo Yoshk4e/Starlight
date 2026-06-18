@@ -20,8 +20,9 @@ public sealed class Account
     public string Email { get; set; } = string.Empty;
 
     /// <summary>
-    /// Lowercase SHA-256 hex digest of the password. Validated with
-    /// <see cref="Starlight.Crypto.Sha256Crypto.Verify"/>.
+    /// Argon2 password hash stored as a Base64 string with formatting.
+    /// <br/>
+    /// See <see cref="Starlight.Crypto.Argon2Crypto.Verify"/>.
     /// </summary>
     public string PasswordHash { get; set; } = string.Empty;
 

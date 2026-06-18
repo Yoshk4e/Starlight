@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
+using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.Crypto;
 using Starlight.SDK.Database;
@@ -14,6 +15,7 @@ namespace Starlight.SDK.Services;
 public sealed class AuthService(
     IAccountRepository accounts,
     RsaCrypto? passwordCrypto,
+    SdkConfig sdkConfig,
     ILogger<AuthService> logger
 )
     : IAuthService
@@ -54,8 +56,22 @@ public sealed class AuthService(
 
         var record = await accounts.GetAccountByUsernameAsync(account, ct);
 
-        if (record is null || !Argon2Crypto.Verify(password, record.PasswordHash))
+        if (record is null)
+        {
+            // Unknown account. Only create one on the fly if the server
+            // has opted into that behavior, otherwise this is a normal
+            // login failure.
+            // TODO: Implement the account creation endpoint later on and leave this as option for users that really wants it
+            if (!sdkConfig.AllowAccountAutoCreate)
+                return AuthResult.Fail(Retcode.LoginInvalidAccount);
+
+            record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
+            logger.LogInformation("Auto-created account {Account} (id {Id}) on first login", account, record.Id);
+        }
+        else if (!Argon2Crypto.Verify(password, record.PasswordHash))
+        {
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
+        }
 
         record.SessionToken = GenerateToken();
         record.RegisterDevice(deviceId);

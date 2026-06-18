@@ -94,6 +94,15 @@ public sealed class SdkConfig
     /// Leave empty to disable RSA password decryption.
     /// </summary>
     public string? PasswordRsaKeyPath { get; set; }
+
+    /// <summary>
+    /// When true, a login attempt for a username that doesn't exist yet
+    /// will create a brand-new account using the supplied credentials
+    /// instead of failing with <see cref="Starlight.SDK.Common.Retcode.LoginInvalidAccount"/>.
+    /// When false (the default), unknown accounts are rejected and must be
+    /// created.
+    /// </summary>
+    public bool AllowAccountAutoCreate { get; set; }
 }
 
 public sealed class SqliteConfig

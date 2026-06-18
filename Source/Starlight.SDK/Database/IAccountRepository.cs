@@ -13,6 +13,13 @@ public interface IAccountRepository
     Task<Account?> GetAccountBySessionTokenAsync(string token, CancellationToken ct);
 
     /// <summary>
+    /// Creates a brand-new account with the given username and an already-hashed
+    /// password, used by the auto-create-on-login flow when
+    /// <see cref="Starlight.Common.SdkConfig.AllowAccountAutoCreate"/> is enabled.
+    /// </summary>
+    Task<Account> CreateAccountAsync(string username, string passwordHash, CancellationToken ct);
+
+    /// <summary>
     /// Persists the rotating fields (session token, combo token, known
     /// device ids) after an auth operation succeeds.
     /// </summary>

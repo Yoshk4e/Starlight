@@ -26,6 +26,19 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         return entity is null ? null : Map(entity);
     }
 
+    public async Task<Account> CreateAccountAsync(string username, string passwordHash, CancellationToken ct)
+    {
+        var entity = new AccountEntity {
+            Username = username,
+            Password = passwordHash
+        };
+
+        db.Add(entity);
+        await db.SaveChangesAsync(ct);
+
+        return Map(entity);
+    }
+
     public async Task UpdateSessionAsync(Account account, CancellationToken ct)
     {
         var entity = await db.FindAsync<AccountEntity>(account.Id, ct);

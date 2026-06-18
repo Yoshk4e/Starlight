@@ -4,14 +4,21 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using Starlight.Database.DependencyInjection;
+using Starlight.SDK.Crypto;
 using Starlight.SDK.Database;
 using Starlight.SDK.Database.Impl;
+using Starlight.SDK.Http.Endpoints;
+using Starlight.SDK.Services;
 
 namespace Starlight.SDK;
 
-public sealed class HttpServerService(StarlightConfig config) : BackgroundService
+public sealed class HttpServerService(
+    StarlightConfig config,
+    IServiceProvider rootProvider)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -19,7 +26,10 @@ public sealed class HttpServerService(StarlightConfig config) : BackgroundServic
 
         builder.Services
             .AddSerilog()
-            .AddSingleton(_ => config);
+            .AddSingleton(_ => config)
+            .AddSingleton(rootProvider.GetRequiredService<IAccountRepository>())
+            .AddSingleton(rootProvider.GetRequiredService<IAuthService>())
+            .AddSingleton(rootProvider.GetRequiredService<SdkAuthOptions>());
 
         // NOTE: If you wish to use SSL, do so behind a reverse proxy.
         builder.WebHost.UseUrls($"http://{config.Server.Http.BindAddress}:{config.Server.Http.BindPort}");
@@ -27,6 +37,10 @@ public sealed class HttpServerService(StarlightConfig config) : BackgroundServic
         var app = builder.Build();
 
         app.MapGet("/", () => Results.Ok("Starlight"));
+
+
+        app.MapShieldEndpoints();
+        app.MapComboGranterEndpoints();
 
         await app.RunAsync(stoppingToken);
     }
@@ -39,15 +53,48 @@ public static class ServiceExtensions
         var provider = DatabaseHelper.ParseProvider(config.Database.ConnectionString, out var connString);
         switch (provider)
         {
-            case ProviderType.Sqlite: {
-                collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(HttpServerService).Assembly);
-                collection.AddSingleton<IAccountRepository, SqliteAccountRepository>();
-                break;
-            }
+            case ProviderType.Sqlite:
+                {
+                    collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(HttpServerService).Assembly);
+                    collection.AddSingleton<IAccountRepository, SqliteAccountRepository>();
+                    break;
+                }
             default:
                 throw new NotSupportedException($"Unsupported or missing database provider '{provider?.ToString() ?? "<null>"}'.");
         }
 
+        var sdkCfg = config.Server.Sdk;
+        var options = new SdkAuthOptions {
+            HmacKey = sdkCfg.HmacKey,
+            SkipSignatureCheck = sdkCfg.SkipSignatureCheck,
+            PasswordRsaKeyPath = sdkCfg.PasswordRsaKeyPath,
+        };
+        collection.AddSingleton(options);
+
+        // Load the password decryption key lazily, it's only needed when a
+        // client sends is_crypto=true, and absence shouldn't crash the host.
+        collection.AddSingleton<RsaCrypto?>(_ => {
+            if (string.IsNullOrWhiteSpace(options.PasswordRsaKeyPath))
+                return null;
+
+            if (!File.Exists(options.PasswordRsaKeyPath))
+            {
+                Log.Warning("Configured SDK password RSA key not found at {Path}", options.PasswordRsaKeyPath);
+                return null;
+            }
+
+            try
+            {
+                return RsaCrypto.FromPkcs8File(options.PasswordRsaKeyPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to load SDK password RSA key");
+                return null;
+            }
+        });
+
+        collection.AddSingleton<IAuthService, AuthService>();
         collection.AddHostedService<HttpServerService>();
 
         return collection;

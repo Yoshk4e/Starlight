@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Serilog;
@@ -69,6 +69,31 @@ public sealed class ServerConfig
 {
     public GameConfig Game { get; set; } = new();
     public HttpConfig Http { get; set; } = new();
+    public SdkConfig Sdk { get; set; } = new();
+}
+
+public sealed class SdkConfig
+{
+    /// <summary>
+    /// Shared HMAC-SHA256 key used to verify <c>sign</c> on the combo
+    /// granter login endpoint. Must match the value the client was built
+    /// with.
+    /// </summary>
+    public string HmacKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When true, the combo granter endpoint accepts requests without
+    /// validating their HMAC signature. Intended for local development
+    /// only — never enable in production.
+    /// </summary>
+    public bool SkipSignatureCheck { get; set; }
+
+    /// <summary>
+    /// Filesystem path to the PKCS#8 RSA private key the shield login
+    /// endpoint uses to decrypt passwords sent with <c>is_crypto=true</c>.
+    /// Leave empty to disable RSA password decryption.
+    /// </summary>
+    public string? PasswordRsaKeyPath { get; set; }
 }
 
 public sealed class SqliteConfig

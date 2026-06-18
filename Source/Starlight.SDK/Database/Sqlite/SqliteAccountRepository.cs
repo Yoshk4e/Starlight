@@ -9,14 +9,44 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
     public async Task<Account?> GetAccountById(uint id)
     {
         var entity = await db.FindAsync<AccountEntity>(id);
-        if (entity is null) return null;
-
-        return new Account {
-            Id = entity.Id,
-            Username = entity.Username,
-            Email = entity.Email ?? string.Empty,
-            Password = entity.Password,
-            PasswordTime = 0
-        };
+        return entity is null ? null : Map(entity);
     }
+
+    public async Task<Account?> GetAccountByUsernameAsync(string username, CancellationToken ct)
+    {
+        var entities = await db.QueryAsync<AccountEntity>(a => a.Username == username, ct);
+        var entity = entities.FirstOrDefault();
+        return entity is null ? null : Map(entity);
+    }
+
+    public async Task<Account?> GetAccountBySessionTokenAsync(string token, CancellationToken ct)
+    {
+        var entities = await db.QueryAsync<AccountEntity>(a => a.SessionToken == token, ct);
+        var entity = entities.FirstOrDefault();
+        return entity is null ? null : Map(entity);
+    }
+
+    public async Task UpdateSessionAsync(Account account, CancellationToken ct)
+    {
+        var entity = await db.FindAsync<AccountEntity>(account.Id, ct);
+        if (entity is null) return;
+
+        entity.SessionToken = account.SessionToken;
+        entity.ComboToken = account.ComboToken;
+        entity.CurrentDeviceId = account.CurrentDeviceId;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static Account Map(AccountEntity entity) => new() {
+        Id = entity.Id,
+        Username = entity.Username,
+        Email = entity.Email ?? string.Empty,
+        PasswordHash = entity.Password,
+        PasswordTime = 0,
+        SessionToken = entity.SessionToken ?? string.Empty,
+        ComboToken = entity.ComboToken ?? string.Empty,
+        CurrentDeviceId = entity.CurrentDeviceId ?? string.Empty,
+    };
 }

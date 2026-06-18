@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Starlight.SDK.Crypto;
+namespace Starlight.Crypto;
 
 /// <summary>
 /// HMAC-SHA256 signature helpers used by the combo granter login flow to

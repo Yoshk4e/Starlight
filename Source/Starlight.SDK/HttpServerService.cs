@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Starlight.Database.DependencyInjection;
-using Starlight.SDK.Crypto;
+using Starlight.Crypto;
 using Starlight.SDK.Database;
 using Starlight.SDK.Database.Impl;
 using Starlight.SDK.Http.Endpoints;

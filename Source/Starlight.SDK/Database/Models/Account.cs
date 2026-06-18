@@ -21,7 +21,7 @@ public sealed class Account
 
     /// <summary>
     /// Lowercase SHA-256 hex digest of the password. Validated with
-    /// <see cref="Starlight.SDK.Crypto.Sha256Crypto.Verify"/>.
+    /// <see cref="Starlight.Crypto.Sha256Crypto.Verify"/>.
     /// </summary>
     public string PasswordHash { get; set; } = string.Empty;
 

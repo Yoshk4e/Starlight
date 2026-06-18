@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Starlight.SDK.Common;
-using Starlight.SDK.Crypto;
+using Starlight.Crypto;
 using Starlight.SDK.Database;
 
 namespace Starlight.SDK.Services;

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Starlight.Common;
 using Starlight.SDK.Common;
-using Starlight.SDK.Crypto;
+using Starlight.Crypto;
 using Starlight.SDK.Http.Models;
 using Starlight.SDK.Services;
 

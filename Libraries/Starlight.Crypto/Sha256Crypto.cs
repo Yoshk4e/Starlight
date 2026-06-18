@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Starlight.SDK.Crypto;
+namespace Starlight.Crypto;
 
 /// <summary>
 /// SHA-256 helpers for password storage. We never store plain-text passwords,

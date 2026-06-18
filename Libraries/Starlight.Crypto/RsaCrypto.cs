@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Starlight.SDK.Crypto;
+namespace Starlight.Crypto;
 
 /// <summary>
-/// RSA helpers for SDK auth flows.
+/// RSA helpers.
 /// </summary>
 public sealed class RsaCrypto
 {

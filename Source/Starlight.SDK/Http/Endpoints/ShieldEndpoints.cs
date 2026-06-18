@@ -26,7 +26,7 @@ public static class ShieldEndpoints
     }
 
     private static async Task<IResult> HandleLoginAsync(
-        [FromBody] ShieldLoginRequest body,
+        [FromBody] ShieldLoginRequest? body,
         [FromHeader(Name = "x-rpc-device_id")] string? deviceId,
         [FromServices] IAuthService auth,
         CancellationToken ct

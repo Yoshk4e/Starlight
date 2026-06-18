@@ -30,7 +30,7 @@ public static class ComboGranterEndpoints
     }
 
     private static async Task<IResult> HandleLoginV2Async(
-        [FromBody] ComboGranterLoginRequest body,
+        [FromBody] ComboGranterLoginRequest? body,
         [FromHeader(Name = "x-rpc-device_id")] string? deviceId,
         [FromServices] IAuthService auth,
         [FromServices] SdkConfig sdkConfig,

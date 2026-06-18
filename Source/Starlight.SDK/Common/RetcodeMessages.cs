@@ -50,9 +50,8 @@ public static class RetcodeMessages
             [Retcode.BindRealPersonErrorParameters] = "Real-name binding parameter error",
             [Retcode.BindRealPersonInvalidTicket] = "Real-name binding ticket invalid",
 
-            [Retcode.LauncherNotFound] = "Launcher not found",
+            [Retcode.LauncherNotFound] = "Launcher not found"
         }.ToFrozenDictionary();
-
 
     public static string Get(Retcode code) =>
         Map.TryGetValue(code, out var msg) ? msg : $"Error ({(int)code})";

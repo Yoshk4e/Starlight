@@ -14,7 +14,7 @@ public static class ShieldEndpoints
     private static readonly string[] PathPrefixes = [
         "/hk4e_global/mdk/shield/api",
         "/hk4e_cn/mdk/shield/api",
-        "/mdk/shield/api",
+        "/mdk/shield/api"
     ];
 
     public static void MapShieldEndpoints(this IEndpointRouteBuilder routes)
@@ -29,7 +29,8 @@ public static class ShieldEndpoints
         [FromBody] ShieldLoginRequest body,
         [FromHeader(Name = "x-rpc-device_id")] string? deviceId,
         [FromServices] IAuthService auth,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         // missing core fields are treated as network-at-risk,
         // rather than a plain parameter error so the client
@@ -60,13 +61,13 @@ public static class ShieldEndpoints
                 Id = acc.Id,
                 Name = acc.Username,
                 Email = acc.Email,
-                Token = acc.SessionToken,
+                Token = acc.SessionToken
             },
             RealPersonRequired = false,
             SafeMobileRequired = false,
             ReactivateRequired = false,
             DeviceGrantRequired = false,
-            RealNameOperation = "None",
+            RealNameOperation = "None"
         };
 
         return Results.Ok(ApiResponse.Ok(payload));

@@ -17,7 +17,7 @@ public static class ComboGranterEndpoints
     private static readonly string[] PathPrefixes = [
         "/hk4e_global/combo/granter/login",
         "/hk4e_cn/combo/granter/login",
-        "/combo/granter/login",
+        "/combo/granter/login"
     ];
 
     public static void MapComboGranterEndpoints(this IEndpointRouteBuilder routes)
@@ -35,7 +35,8 @@ public static class ComboGranterEndpoints
         [FromServices] IAuthService auth,
         [FromServices] SdkConfig sdkConfig,
         [FromServices] ILoggerFactory loggerFactory,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var logger = loggerFactory.CreateLogger("Starlight.SDK.ComboGranter");
 
@@ -64,11 +65,13 @@ public static class ComboGranterEndpoints
             }
 
             var canonical = CreateMessage(body);
+
             if (!HmacCrypto.Verify(canonical, sdkConfig.HmacKey, body.Sign!))
                 return Results.Ok(ApiResponse.From(Retcode.MissingConfiguration));
         }
 
         ComboLoginV2Data? inner;
+
         try
         {
             inner = JsonSerializer.Deserialize<ComboLoginV2Data>(body.Data!);
@@ -82,14 +85,16 @@ public static class ComboGranterEndpoints
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
 
         var result = await auth.ExchangeComboTokenAsync(inner.Token!, deviceId!, ct);
+
         if (!result.IsSuccess || result.Account is null)
             return Results.Ok(ApiResponse.From(result.Code));
 
         var acc = result.Account;
+
         var innerJson = JsonSerializer.Serialize(new ComboInnerData {
             Guest = inner.Guest.GetValueOrDefault(),
             CountryCode = "US",
-            IsNewRegister = false,
+            IsNewRegister = false
         });
 
         var payload = new ComboGranterLoginResponse {
@@ -99,12 +104,11 @@ public static class ComboGranterEndpoints
             Data = innerJson,
             Heartbeat = false,
             AccountType = inner.Guest.GetValueOrDefault() ? 0 : 1,
-            FatigueRemind = null,
+            FatigueRemind = null
         };
 
         return Results.Ok(ApiResponse.Ok(payload));
     }
-
 
     private static string CreateMessage(ComboGranterLoginRequest body)
     {
@@ -112,7 +116,7 @@ public static class ComboGranterEndpoints
             ["app_id"] = body.AppId!.Value.ToString(),
             ["channel_id"] = body.ChannelId!.Value.ToString(),
             ["data"] = body.Data!,
-            ["device"] = body.Device!,
+            ["device"] = body.Device!
         };
 
         return string.Join("&", pairs.Select(p => $"{p.Key}={p.Value}"));

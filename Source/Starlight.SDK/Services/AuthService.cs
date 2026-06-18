@@ -14,7 +14,8 @@ namespace Starlight.SDK.Services;
 public sealed class AuthService(
     IAccountRepository accounts,
     RsaCrypto? passwordCrypto,
-    ILogger<AuthService> logger)
+    ILogger<AuthService> logger
+)
     : IAuthService
 {
     /// <summary>
@@ -27,7 +28,8 @@ public sealed class AuthService(
         string password,
         bool isCryptoEncrypted,
         string deviceId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
             return AuthResult.Fail(Retcode.ParameterError);
@@ -51,6 +53,7 @@ public sealed class AuthService(
         }
 
         var record = await accounts.GetAccountByUsernameAsync(account, ct);
+
         if (record is null || !Argon2Crypto.Verify(password, record.PasswordHash))
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
@@ -64,12 +67,14 @@ public sealed class AuthService(
     public async Task<AuthResult> ExchangeComboTokenAsync(
         string sessionToken,
         string deviceId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (string.IsNullOrWhiteSpace(sessionToken))
             return AuthResult.Fail(Retcode.ParameterError);
 
         var record = await accounts.GetAccountBySessionTokenAsync(sessionToken, ct);
+
         if (record is null)
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
@@ -80,11 +85,11 @@ public sealed class AuthService(
         return AuthResult.Ok(record);
     }
 
-
     private static string GenerateToken()
     {
         const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         Span<char> buffer = stackalloc char[TokenLength];
+
         for (var i = 0; i < TokenLength; i++)
         {
             buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];

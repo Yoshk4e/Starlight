@@ -29,6 +29,7 @@ public static class Argon2Crypto
     private static (byte[], byte[]) FromHashString(string hash)
     {
         var parts = hash.Split('$');
+
         if (parts.Length != 3 || !string.Equals(parts[0], "argon2id", StringComparison.Ordinal))
         {
             throw new InvalidDataException("Invalid hash format. Expected: argon2$[hash]$[salt].");
@@ -56,8 +57,7 @@ public static class Argon2Crypto
     {
         var salt = RandomNumberGenerator.GetBytes(SaltSize);
 
-        using var hasher = new Argon2id(Encoding.UTF8.GetBytes(content))
-        {
+        using var hasher = new Argon2id(Encoding.UTF8.GetBytes(content)) {
             Salt = salt,
             DegreeOfParallelism = DegreeOfParallelism,
             MemorySize = MemorySizeKb,
@@ -71,6 +71,7 @@ public static class Argon2Crypto
     public static bool Verify(string content, string expected)
     {
         (byte[] expectedHash, byte[] salt) parsed;
+
         try
         {
             parsed = FromHashString(expected);
@@ -80,8 +81,7 @@ public static class Argon2Crypto
             return false;
         }
 
-        using var hasher = new Argon2id(Encoding.UTF8.GetBytes(content))
-        {
+        using var hasher = new Argon2id(Encoding.UTF8.GetBytes(content)) {
             Salt = parsed.salt,
             DegreeOfParallelism = DegreeOfParallelism,
             MemorySize = MemorySizeKb,

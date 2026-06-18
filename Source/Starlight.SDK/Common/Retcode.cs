@@ -46,5 +46,5 @@ public enum Retcode
     InvalidPaymentToken = -7001,
 
     BindRealPersonErrorParameters = -200001,
-    BindRealPersonInvalidTicket = -200005,
+    BindRealPersonInvalidTicket = -200005
 }

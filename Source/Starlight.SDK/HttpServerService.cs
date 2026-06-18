@@ -18,14 +18,14 @@ public static class ServiceExtensions
     public static IServiceCollection AddSdkServer(this IServiceCollection collection, StarlightConfig config)
     {
         var provider = DatabaseHelper.ParseProvider(config.Database.ConnectionString, out var connString);
+
         switch (provider)
         {
-            case ProviderType.Sqlite:
-                {
-                    collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(ServiceExtensions).Assembly);
-                    collection.AddSingleton<IAccountRepository, SqliteAccountRepository>();
-                    break;
-                }
+            case ProviderType.Sqlite: {
+                collection.AddStarlightDatabase(connString, config.Database.Sqlite, typeof(ServiceExtensions).Assembly);
+                collection.AddSingleton<IAccountRepository, SqliteAccountRepository>();
+                break;
+            }
             default:
                 throw new NotSupportedException($"Unsupported or missing database provider '{provider?.ToString() ?? "<null>"}'.");
         }
@@ -38,11 +38,13 @@ public static class ServiceExtensions
         collection.AddSingleton<RsaCrypto?>(_ => {
             if (string.IsNullOrWhiteSpace(sdkCfg.PasswordRsaKeyPath))
                 return null;
+
             if (!File.Exists(sdkCfg.PasswordRsaKeyPath))
             {
                 Log.Warning("Configured SDK password RSA key not found at {Path}", sdkCfg.PasswordRsaKeyPath);
                 return null;
             }
+
             try
             {
                 return RsaCrypto.FromPkcs8File(sdkCfg.PasswordRsaKeyPath);

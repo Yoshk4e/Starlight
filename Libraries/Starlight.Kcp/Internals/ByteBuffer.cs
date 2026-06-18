@@ -1,4 +1,4 @@
-namespace Starlight.Kcp.Internals;
+﻿namespace Starlight.Kcp.Internals;
 
 public sealed class ByteBuffer
 {
@@ -17,7 +17,7 @@ public sealed class ByteBuffer
     public byte[] GetWrittenBytes()
     {
         var result = new byte[_location];
-        Array.Copy(_bytes, 0, result, 0, _location);
+        Array.Copy(_bytes, sourceIndex: 0, result, destinationIndex: 0, _location);
         return result;
     }
 
@@ -36,7 +36,7 @@ public sealed class ByteBuffer
     public void Write(byte[] data)
     {
         EnsureCapacity(data.Length);
-        Array.Copy(data, 0, _bytes, _location, data.Length);
+        Array.Copy(data, sourceIndex: 0, _bytes, _location, data.Length);
         _location += data.Length;
     }
 
@@ -50,40 +50,43 @@ public sealed class ByteBuffer
     {
         EnsureCapacity(2);
         _bytes[_location++] = unchecked((byte)(data & 0xFF));
-        _bytes[_location++] = unchecked((byte)((data >> 8) & 0xFF));
+        _bytes[_location++] = unchecked((byte)(data >> 8 & 0xFF));
     }
 
     public void Write32LE(int data)
     {
         EnsureCapacity(4);
+
         for (var i = 0; i < 4; i++)
         {
-            _bytes[_location++] = unchecked((byte)((data >> (i * 8)) & 0xFF));
+            _bytes[_location++] = unchecked((byte)(data >> i * 8 & 0xFF));
         }
     }
 
     public void Write64LE(long data)
     {
         EnsureCapacity(8);
+
         for (var i = 0; i < 8; i++)
         {
-            _bytes[_location++] = unchecked((byte)((data >> (i * 8)) & 0xFF));
+            _bytes[_location++] = unchecked((byte)(data >> i * 8 & 0xFF));
         }
     }
 
     public void Write64BE(long data)
     {
         EnsureCapacity(8);
+
         for (var i = 7; i >= 0; i--)
         {
-            _bytes[_location++] = unchecked((byte)((data >> (i * 8)) & 0xFF));
+            _bytes[_location++] = unchecked((byte)(data >> i * 8 & 0xFF));
         }
     }
 
     public int Read16BE()
     {
         EnsureReadable(2);
-        var result = (_bytes[_location] << 8) | _bytes[_location + 1];
+        var result = _bytes[_location] << 8 | _bytes[_location + 1];
         _location += 2;
         return result;
     }
@@ -91,10 +94,11 @@ public sealed class ByteBuffer
     public int Read32BE()
     {
         EnsureReadable(4);
-        var result = (_bytes[_location] << 24)
-            | (_bytes[_location + 1] << 16)
-            | (_bytes[_location + 2] << 8)
-            | _bytes[_location + 3];
+
+        var result = _bytes[_location] << 24
+                     | _bytes[_location + 1] << 16
+                     | _bytes[_location + 2] << 8
+                     | _bytes[_location + 3];
         _location += 4;
         return result;
     }

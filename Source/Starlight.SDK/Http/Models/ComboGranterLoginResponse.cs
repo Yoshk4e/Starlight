@@ -14,7 +14,7 @@ public sealed class ComboGranterLoginResponse
     public required string ComboToken { get; init; }
 
     [JsonPropertyName("data")]
-    public required string Data { get; init; }      // JSON-string blob, see ComboInnerData
+    public required string Data { get; init; } // JSON-string blob, see ComboInnerData
 
     [JsonPropertyName("heartbeat")]
     public bool Heartbeat { get; init; }

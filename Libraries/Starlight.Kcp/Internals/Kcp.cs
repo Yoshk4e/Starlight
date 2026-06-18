@@ -1,5 +1,4 @@
 using System.IO.Hashing;
-
 using static Starlight.Kcp.Internals.KcpConstants;
 
 namespace Starlight.Kcp.Internals;
@@ -115,10 +114,11 @@ public sealed class KCP
     {
         Nodelay = nodelay;
         RxMinrto = nodelay ? KCP_RTO_NDL : KCP_RTO_MIN;
+
         Interval = interval switch {
             < 10 => 10,
             > 5000 => 5000,
-            _ => interval,
+            _ => interval
         };
 
         if (resend >= 0)
@@ -153,6 +153,7 @@ public sealed class KCP
         }
 
         var slap = TimeDiff(Current, TsFlush);
+
         if (slap >= 10000 || slap < -10000)
         {
             TsFlush = Current;
@@ -162,12 +163,14 @@ public sealed class KCP
         if (slap >= 0)
         {
             TsFlush += Interval;
+
             if (TimeDiff(Current, TsFlush) >= 0)
             {
                 TsFlush = Current + Interval;
             }
 
             var flush = Flush();
+
             if (flush.IsFailure)
             {
                 return KcpResult<bool>.Failure(flush.Exception!);
@@ -212,6 +215,7 @@ public sealed class KCP
             var delta = rtt > RxSrtt ? rtt - RxSrtt : RxSrtt - rtt;
             RxRttval = (3 * RxRttval + delta) / 4;
             RxSrtt = (7 * RxSrtt + rtt) / 8;
+
             if (RxSrtt < 1)
             {
                 RxSrtt = 1;
@@ -232,6 +236,7 @@ public sealed class KCP
         for (var i = 0; i < SndBuf.Count; i++)
         {
             var buffSn = SndBuf[i].Sn;
+
             if (buffSn == sn)
             {
                 SndBuf.RemoveAt(i);
@@ -253,6 +258,7 @@ public sealed class KCP
     private void ParseData(KcpSegment newSegment)
     {
         var sn = newSegment.Sn;
+
         if (TimeDiff(sn, RcvNxt + RcvWnd) >= 0 || TimeDiff(sn, RcvNxt) < 0)
         {
             return;
@@ -291,6 +297,7 @@ public sealed class KCP
         {
             var nrcvQue = RcvQueue.Count;
             var seg = RcvBuf[0];
+
             if (seg.Sn == RcvNxt && nrcvQue < RcvWnd)
             {
                 RcvNxt += 1;
@@ -335,13 +342,14 @@ public sealed class KCP
             _ when remainingAfterData < KcpVersion.KCP_BASE.Overhead() => KcpVersion.KCP_UNKNOWN,
             _ when cursor.Peek32LE(dataLen + KCP_EXTRA_OVERHEAD_HYV_V1) == Conv => KcpVersion.KCP_HYV_V1,
             _ when cursor.Peek32LE(dataLen + KCP_EXTRA_OVERHEAD_DEFAULT) == Conv => KcpVersion.KCP_BASE,
-            _ => KcpVersion.KCP_UNKNOWN,
+            _ => KcpVersion.KCP_UNKNOWN
         };
     }
 
     public KcpResult<long> Input(ByteCursor data)
     {
         var inputSize = data.Size;
+
         if (inputSize < KcpVersion.Overhead())
         {
             return KcpResult<long>.Failure(new InvalidOperationException($"Error::InvalidSegmentSize({inputSize})"));
@@ -354,6 +362,7 @@ public sealed class KCP
         while (data.Remaining >= KcpVersion.Overhead())
         {
             var conv = data.Read32LE();
+
             if (conv != Conv)
             {
                 if (InputConv)
@@ -411,57 +420,57 @@ public sealed class KCP
 
             switch (cmd)
             {
-                case KCP_CMD_ACK:
+                case KCP_CMD_ACK: {
+                    var rtt = TimeDiff(Current, ts);
+
+                    if (rtt >= 0)
                     {
-                        var rtt = TimeDiff(Current, ts);
-                        if (rtt >= 0)
-                        {
-                            UpdateAck(rtt);
-                        }
-
-                        ParseAck(sn);
-                        ShrinkBuf();
-
-                        if (!flag)
-                        {
-                            maxAck = sn;
-                            flag = true;
-                        } else if (TimeDiff(sn, maxAck) > 0)
-                        {
-                            maxAck = sn;
-                        }
-
-                        break;
+                        UpdateAck(rtt);
                     }
 
-                case KCP_CMD_PUSH:
+                    ParseAck(sn);
+                    ShrinkBuf();
+
+                    if (!flag)
                     {
-                        if (TimeDiff(sn, RcvNxt + RcvWnd) < 0)
-                        {
-                            AckPush(sn, ts);
-                            if (TimeDiff(sn, RcvNxt) >= 0)
-                            {
-                                var sbuf = data.Read(len);
-                                hasReadData = true;
-
-                                var segment = new KcpSegment(sbuf, KcpVersion) {
-                                    Conv = conv,
-                                    Token = token,
-                                    Cmd = cmd,
-                                    Frg = frg,
-                                    Wnd = wnd,
-                                    Ts = ts,
-                                    Sn = sn,
-                                    Una = una,
-                                    ByteCheckCode = byteCheckCode,
-                                };
-
-                                ParseData(segment);
-                            }
-                        }
-
-                        break;
+                        maxAck = sn;
+                        flag = true;
+                    } else if (TimeDiff(sn, maxAck) > 0)
+                    {
+                        maxAck = sn;
                     }
+
+                    break;
+                }
+
+                case KCP_CMD_PUSH: {
+                    if (TimeDiff(sn, RcvNxt + RcvWnd) < 0)
+                    {
+                        AckPush(sn, ts);
+
+                        if (TimeDiff(sn, RcvNxt) >= 0)
+                        {
+                            var sbuf = data.Read(len);
+                            hasReadData = true;
+
+                            var segment = new KcpSegment(sbuf, KcpVersion) {
+                                Conv = conv,
+                                Token = token,
+                                Cmd = cmd,
+                                Frg = frg,
+                                Wnd = wnd,
+                                Ts = ts,
+                                Sn = sn,
+                                Una = una,
+                                ByteCheckCode = byteCheckCode
+                            };
+
+                            ParseData(segment);
+                        }
+                    }
+
+                    break;
+                }
 
                 case KCP_CMD_WASK:
                     Probe |= KCP_ASK_TELL;
@@ -486,6 +495,7 @@ public sealed class KCP
         if (SndUna > oldUna && Cwnd < RmtWnd)
         {
             var mss = Mss;
+
             if (Cwnd < Ssthresh)
             {
                 Cwnd += 1;
@@ -497,7 +507,8 @@ public sealed class KCP
                     Incr = mss;
                 }
 
-                Incr += (mss * mss) / Incr + (mss / 16);
+                Incr += mss * mss / Incr + mss / 16;
+
                 if ((Cwnd + 1) * mss <= Incr)
                 {
                     Cwnd += 1;
@@ -514,10 +525,7 @@ public sealed class KCP
         return KcpResult<long>.Success(data.BytesRead);
     }
 
-    public int WndUnused()
-    {
-        return RcvQueue.Count < RcvWnd ? RcvWnd - RcvQueue.Count : 0;
-    }
+    public int WndUnused() => RcvQueue.Count < RcvWnd ? RcvWnd - RcvQueue.Count : 0;
 
     private KcpResult<bool> FlushAck(KcpSegment segment)
     {
@@ -554,6 +562,7 @@ public sealed class KCP
                 }
 
                 ProbeWait += ProbeWait / 2;
+
                 if (ProbeWait > KCP_PROBE_LIMIT)
                 {
                     ProbeWait = KCP_PROBE_LIMIT;
@@ -572,6 +581,7 @@ public sealed class KCP
     private KcpResult<bool> FlushProbeCommand(byte cmd, KcpSegment segment)
     {
         segment.Cmd = cmd;
+
         if (Buffer.BytesWritten + KcpVersion.Overhead() > Mtu)
         {
             Output.Write(Buffer.GetWrittenBytes());
@@ -587,6 +597,7 @@ public sealed class KCP
         if ((Probe & KCP_ASK_SEND) != 0)
         {
             var result = FlushProbeCommand(KCP_CMD_WASK, segment);
+
             if (result.IsFailure)
             {
                 return result;
@@ -596,6 +607,7 @@ public sealed class KCP
         if ((Probe & KCP_ASK_TELL) != 0)
         {
             var result = FlushProbeCommand(KCP_CMD_WINS, segment);
+
             if (result.IsFailure)
             {
                 return result;
@@ -614,15 +626,16 @@ public sealed class KCP
             return KcpResult<bool>.Failure(new InvalidOperationException("Error::NeedUpdate"));
         }
 
-        var segment = new KcpSegment(null, KcpVersion) {
+        var segment = new KcpSegment(data: null, KcpVersion) {
             Conv = Conv,
             Token = Token,
             Cmd = KCP_CMD_ACK,
             Wnd = WndUnused(),
-            Una = RcvNxt,
+            Una = RcvNxt
         };
 
         var ack = FlushAck(segment);
+
         if (ack.IsFailure)
         {
             return ack;
@@ -631,12 +644,14 @@ public sealed class KCP
         ProbeWndSize();
 
         var probe = FlushProbeCommands(segment);
+
         if (probe.IsFailure)
         {
             return probe;
         }
 
         var cwnd = Math.Min(SndWnd, RmtWnd);
+
         if (!NoCwnd)
         {
             cwnd = Math.Min(Cwnd, cwnd);
@@ -694,6 +709,7 @@ public sealed class KCP
                 needSend = true;
                 sndSegment.Xmit += 1;
                 Xmit += 1;
+
                 if (!Nodelay)
                 {
                     sndSegment.Rto += unchecked((int)RxRto);
@@ -720,6 +736,7 @@ public sealed class KCP
                 sndSegment.Una = RcvNxt;
 
                 var need = KcpVersion.Overhead() + (sndSegment.Data?.Length ?? 0);
+
                 if (Buffer.BytesWritten + need > Mtu)
                 {
                     Output.Write(Buffer.GetWrittenBytes());
@@ -745,6 +762,7 @@ public sealed class KCP
         {
             var inflight = SndNxt - SndUna;
             Ssthresh = inflight / 2;
+
             if (Ssthresh < KCP_THRESH_MIN)
             {
                 Ssthresh = KCP_THRESH_MIN;
@@ -757,6 +775,7 @@ public sealed class KCP
         if (lost)
         {
             Ssthresh = cwnd / 2;
+
             if (Ssthresh < KCP_THRESH_MIN)
             {
                 Ssthresh = KCP_THRESH_MIN;
@@ -783,6 +802,7 @@ public sealed class KCP
         }
 
         var segment = RcvQueue[0];
+
         if (segment.Frg == 0)
         {
             return KcpResult<int>.Success(segment.Data?.Length ?? 0);
@@ -794,9 +814,11 @@ public sealed class KCP
         }
 
         var len = 0;
+
         foreach (var item in RcvQueue)
         {
             len += item.Data?.Length ?? 0;
+
             if (item.Frg == 0)
             {
                 break;
@@ -814,12 +836,14 @@ public sealed class KCP
         }
 
         var peek = PeekSize();
+
         if (peek.IsFailure)
         {
             return KcpResult<int>.Failure(peek.Exception!);
         }
 
         var peeksize = peek.Value;
+
         if (peeksize > destination.Length)
         {
             return KcpResult<int>.Failure(new InvalidOperationException("Error::UserBufTooSmall"));
@@ -860,23 +884,23 @@ public sealed class KCP
         if (data.Length == 0)
             return KcpResult<bool>.Failure(new InvalidOperationException("Error::EmptyData"));
 
-        var count = Stream
-            ? (data.Length + Mss - 1) / Mss
+        var count = Stream ? (data.Length + Mss - 1) / Mss
             : data.Length <= Mss ? 1 : (data.Length + Mss - 1) / Mss;
 
         if (count >= KCP_WND_RCV)
             return KcpResult<bool>.Failure(new InvalidOperationException("Error::DataTooLarge"));
 
         var offset = 0;
+
         for (var i = 0; i < count; i++)
         {
             var size = Math.Min(data.Length - offset, Mss);
             var buf = new byte[size];
-            Array.Copy(data, offset, buf, 0, size);
+            Array.Copy(data, offset, buf, destinationIndex: 0, size);
             offset += size;
 
             var segment = new KcpSegment(buf, KcpVersion) {
-                Frg = (byte)(Stream ? 0 : count - i - 1),
+                Frg = (byte)(Stream ? 0 : count - i - 1)
             };
 
             SndQueue.Add(segment);

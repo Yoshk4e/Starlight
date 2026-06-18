@@ -49,8 +49,8 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         PasswordTime = 0,
         SessionToken = entity.SessionToken ?? string.Empty,
         ComboToken = entity.ComboToken ?? string.Empty,
-        KnownDeviceIds = string.IsNullOrEmpty(entity.KnownDeviceIds)
-            ? []
-            : entity.KnownDeviceIds.Split(DeviceIdDelimiter, StringSplitOptions.RemoveEmptyEntries).ToList(),
+        KnownDeviceIds = string.IsNullOrEmpty(entity.KnownDeviceIds) ?
+            [] :
+            entity.KnownDeviceIds.Split(DeviceIdDelimiter, StringSplitOptions.RemoveEmptyEntries).ToList()
     };
 }

@@ -13,7 +13,7 @@ public readonly record struct AuthResult(Retcode Code, Account? Account)
     public bool IsSuccess => Code == Retcode.Success && Account is not null;
 
     public static AuthResult Ok(Account account) => new(Retcode.Success, account);
-    public static AuthResult Fail(Retcode code) => new(code, null);
+    public static AuthResult Fail(Retcode code) => new(code, Account: null);
 }
 
 /// <summary>
@@ -33,7 +33,8 @@ public interface IAuthService
         string password,
         bool isCryptoEncrypted,
         string deviceId,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Exchanges a session token (from <see cref="LoginAsync"/>) for a combo
@@ -42,5 +43,6 @@ public interface IAuthService
     Task<AuthResult> ExchangeComboTokenAsync(
         string sessionToken,
         string deviceId,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 }

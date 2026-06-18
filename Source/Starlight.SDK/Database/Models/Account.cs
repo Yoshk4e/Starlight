@@ -3,7 +3,7 @@ namespace Starlight.SDK.Database.Models;
 /// <summary>
 /// Domain-model view of an SDK account. The session/combo tokens are
 /// mutated by the auth service on every successful login and are persisted
-/// via <see cref="IAccountRepository.UpdateSessionAsync"/>.
+/// via <see cref="Starlight.SDK.Database.IAccountRepository.UpdateSessionAsync"/>.
 /// </summary>
 public sealed class Account
 {

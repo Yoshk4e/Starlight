@@ -6,7 +6,7 @@ namespace Starlight.SDK.Services;
 /// <summary>
 /// Result of an auth operation. Either we succeed and produce an
 /// <see cref="Account"/>, or we fail with a structured <see cref="Retcode"/>
-/// that the endpoint translates into an <see cref="Http.ApiResponse"/>.
+/// that the endpoint translates into an <see cref="Starlight.SDK.Http.ApiResponse"/>.
 /// </summary>
 public readonly record struct AuthResult(Retcode Code, Account? Account)
 {

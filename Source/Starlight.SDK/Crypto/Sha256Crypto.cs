@@ -22,11 +22,14 @@ public static class Sha256Crypto
     /// Constant-time equality check between a candidate plain-text password
     /// and a previously stored SHA-256 hex digest.
     /// </summary>
-    public static bool Verify(string content, string expectedHash)
-    {
-        var computed = Hash(content);
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.ASCII.GetBytes(computed),
-            Encoding.ASCII.GetBytes(expectedHash));
-    }
+public static bool Verify(string content, string expectedHash)
+{
+    var computed = Hash(content);
+
+    if (expectedHash.Length != computed.Length)
+        return false;
+
+    return CryptographicOperations.FixedTimeEquals(
+        Encoding.ASCII.GetBytes(computed),
+        Encoding.ASCII.GetBytes(expectedHash));
 }

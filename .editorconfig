@@ -1,3 +1,5 @@
+root = true
+
 [*]
 charset = utf-8
 indent_size = 4
@@ -14,7 +16,12 @@ ij_formatter_tags_enabled = true
 ij_smart_tabs = false
 ij_visual_guides =
 ij_wrap_on_typing = false
+
+[{*.bat,*.cmd}]
 end_of_line = crlf
+
+[{*.sh,.gitignore,.gitattributes}]
+end_of_line = lf
 
 [*.proto]
 indent_size = 2
@@ -30,6 +37,7 @@ ij_protobuf_spaces_within_braces = false
 ij_protobuf_spaces_within_brackets = false
 
 [{*.markdown,*.md}]
+end_of_line = lf
 ij_markdown_force_one_space_after_blockquote_symbol = true
 ij_markdown_force_one_space_after_header_symbol = true
 ij_markdown_force_one_space_after_list_bullet = true

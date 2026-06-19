@@ -12,7 +12,6 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ShieldEndpoints
 {
-
     public static void MapShieldEndpoints(this IEndpointRouteBuilder routes)
     {
         foreach (var prefix in SdkRoutes.ShieldPathPrefixes)
@@ -101,5 +100,4 @@ public static class ShieldEndpoints
 
         return Results.Ok(ApiResponse.Ok(payload));
     }
-
 }

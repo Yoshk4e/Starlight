@@ -2,8 +2,8 @@ namespace Starlight.SDK.Common;
 
 public static class SdkUtils
 {
-
     private const int MaxDeviceIdLength = 128;
+
     public static bool IsValidGameBiz(string? biz)
         => !string.IsNullOrEmpty(biz) && GameBiz.All.Contains(biz);
 

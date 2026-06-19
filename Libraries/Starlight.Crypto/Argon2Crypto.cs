@@ -23,7 +23,7 @@ public static class Argon2Crypto
     /// <summary>
     /// Decodes the given hash string given the above format.
     /// </summary>
-    /// <param name="hash">A hash formatted as <code>argon2$[hash]$[salt]</code></param>
+    /// <param name="hash">A hash formatted as <code>argon2id$[hash]$[salt]</code></param>
     /// <exception cref="InvalidDataException">If the hash does not meet the expected format.</exception>
     /// <returns>The (hash, salt) as bytes.</returns>
     private static (byte[], byte[]) FromHashString(string hash)
@@ -32,7 +32,7 @@ public static class Argon2Crypto
 
         if (parts.Length != 3 || !string.Equals(parts[0], "argon2id", StringComparison.Ordinal))
         {
-            throw new InvalidDataException("Invalid hash format. Expected: argon2$[hash]$[salt].");
+            throw new InvalidDataException("Invalid hash format. Expected: argon2id$[hash]$[salt].");
         }
 
         try

@@ -27,26 +27,30 @@ public static class ServiceExtensions
 
         switch (provider)
         {
-            case ProviderType.Sqlite: {
-                builder.Services
-                    .AddStarlightDatabase(connString, dbConfig.Sqlite, typeof(ServiceExtensions).Assembly)
-                    .AddSingleton<IAccountRepository, SqliteAccountRepository>();
-                break;
-            }
+            case ProviderType.Sqlite:
+                {
+                    builder.Services
+                        .AddStarlightDatabase(connString, dbConfig.Sqlite, typeof(ServiceExtensions).Assembly)
+                        .AddSingleton<IAccountRepository, SqliteAccountRepository>();
+                    break;
+                }
             default:
                 throw new NotSupportedException($"Unsupported or missing database provider '{provider?.ToString() ?? "<null>"}'.");
         }
 
         // Load the password decryption key lazily, it's only needed when a
-        // client sends is_crypto=true, and absence shouldn't crash the host.
+        // client sends is_crypto=true. Absence/invalidity is reported as
+        // an explicit null so AuthService can distinguish "no key configured"
+        // from "key loaded" and reject is_crypto=true requests up-front
+        // rather than attempting decryption with a no-op instance.
         builder.Services.AddSingleton<RsaCrypto>(_ => {
             if (string.IsNullOrWhiteSpace(config.PasswordRsaKeyPath))
-                return RsaCrypto.Noop;
+                return null!;
 
             if (!File.Exists(config.PasswordRsaKeyPath))
             {
                 Log.Warning("Configured SDK password RSA key not found at {Path}", config.PasswordRsaKeyPath);
-                return RsaCrypto.Noop;
+                return null!;
             }
 
             try
@@ -56,7 +60,7 @@ public static class ServiceExtensions
             catch (Exception ex)
             {
                 Log.Warning(ex, "Failed to load SDK password RSA key");
-                return RsaCrypto.Noop;
+                return null!;
             }
         });
 

@@ -45,7 +45,6 @@ public static class ComboGranterEndpoints
             || body.ChannelId is null
             || string.IsNullOrEmpty(body.Data)
             || string.IsNullOrEmpty(body.Device)
-            || string.IsNullOrEmpty(body.Sign)
             || string.IsNullOrEmpty(deviceId))
         {
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
@@ -58,6 +57,9 @@ public static class ComboGranterEndpoints
         // (debug builds, integration tests).
         if (!sdkConfig.SkipSignatureCheck)
         {
+            if (string.IsNullOrEmpty(body.Sign))
+                return Results.Ok(ApiResponse.From(Retcode.ParameterError));
+
             if (string.IsNullOrEmpty(sdkConfig.HmacKey))
             {
                 logger.LogError("ComboGranter HMAC key is not configured but SkipSignatureCheck=false");

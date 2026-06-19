@@ -42,7 +42,8 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
     public async Task UpdateSessionAsync(Account account, CancellationToken ct)
     {
         var entity = await db.FindAsync<AccountEntity>(account.Id, ct);
-        if (entity is null) return;
+        if (entity is null)
+            throw new InvalidOperationException($"Account {account.Id} not found while updating session state.");
 
         entity.SessionToken = account.SessionToken;
         entity.ComboToken = account.ComboToken;

@@ -10,6 +10,9 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ShieldEndpoints
 {
+    /// <summary>Maximum accepted length of the <c>x-rpc-device_id</c> header.</summary>
+    private const int MaxDeviceIdLength = 128;
+
     /// <summary>The endpoint is mounted under all three biz-region prefixes the client may use.</summary>
     private static readonly string[] PathPrefixes = [
         "/hk4e_global/mdk/shield/api",
@@ -39,7 +42,8 @@ public static class ShieldEndpoints
             || string.IsNullOrWhiteSpace(body.Account)
             || string.IsNullOrWhiteSpace(body.Password)
             || body.IsCrypto is null
-            || string.IsNullOrWhiteSpace(deviceId))
+            || string.IsNullOrWhiteSpace(deviceId)
+            || !IsValidDeviceId(deviceId))
         {
             return Results.Ok(ApiResponse.From(Retcode.LoginNetworkAtRisk));
         }
@@ -71,5 +75,26 @@ public static class ShieldEndpoints
         };
 
         return Results.Ok(ApiResponse.Ok(payload));
+    }
+
+    /// <summary>
+    /// Validates the device id before it is forwarded downstream. Rejects
+    /// oversized values (would exceed DB column limits when serialized into
+    /// <c>known_device_ids</c>) and values that contain the pipe delimiter
+    /// or control characters, both of which would corrupt the pipe-delimited
+    /// storage format.
+    /// </summary>
+    private static bool IsValidDeviceId(string value)
+    {
+        if (value.Length > MaxDeviceIdLength || value.Contains('|'))
+            return false;
+
+        foreach (var ch in value)
+        {
+            if (char.IsControl(ch))
+                return false;
+        }
+
+        return true;
     }
 }

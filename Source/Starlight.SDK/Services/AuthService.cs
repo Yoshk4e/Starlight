@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Starlight.Common;
 using Starlight.SDK.Common;
@@ -20,10 +21,13 @@ public sealed class AuthService(
 )
     : IAuthService
 {
-    /// <summary>
-    /// Token length used for both session and combo tokens.
-    /// </summary>
     private const int TokenLength = 30;
+
+    /// <summary>Matches the DB column limit.</summary>
+    private const int MaxAccountLength = 64;
+
+    /// <summary>Matches the DB column / endpoint limits.</summary>
+    private const int MaxDeviceIdLength = 128;
 
     public async Task<AuthResult> LoginAsync(
         string account,
@@ -33,10 +37,11 @@ public sealed class AuthService(
         CancellationToken ct
     )
     {
-        if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password)
+            || account.Length > MaxAccountLength || deviceId.Length > MaxDeviceIdLength)
             return AuthResult.Fail(Retcode.ParameterError);
 
-        // Decrypt the password if the client wrapped it with the public key.
+        // client wraps the password with our RSA public key before sending it
         if (isCryptoEncrypted)
         {
             if (passwordCrypto is null)
@@ -47,7 +52,7 @@ public sealed class AuthService(
 
             if (!passwordCrypto.TryDecryptPassword(password, out var decrypted))
             {
-                logger.LogWarning("Failed to RSA-decrypt password for account {Account}", account);
+                logger.LogWarning("Failed to RSA-decrypt password for incoming login request");
                 return AuthResult.Fail(Retcode.LoginFailed);
             }
 
@@ -58,15 +63,23 @@ public sealed class AuthService(
 
         if (record is null)
         {
-            // Unknown account. Only create one on the fly if the server
-            // has opted into that behavior, otherwise this is a normal
-            // login failure.
-            // TODO: Implement the account creation endpoint later on and leave this as option for users that really wants it
             if (!sdkConfig.AllowAccountAutoCreate)
                 return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
-            record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
-            logger.LogInformation("Auto-created account {Account} (id {Id}) on first login", account, record.Id);
+            // TODO: replace with a real registration endpoint, keep auto-create as an opt-in for now
+            try
+            {
+                record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
+            }
+            catch (SqliteException ex) when (!ct.IsCancellationRequested && IsUniqueConstraintViolation(ex))
+            {
+                // lost the race, someone else created the account between our read and insert, just pick it up
+                record = await accounts.GetAccountByUsernameAsync(account, ct);
+                if (record is null)
+                    throw;
+            }
+
+            logger.LogInformation("Auto-created account id {Id} on first login", record.Id);
         } else if (!Argon2Crypto.Verify(password, record.PasswordHash))
         {
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
@@ -85,7 +98,7 @@ public sealed class AuthService(
         CancellationToken ct
     )
     {
-        if (string.IsNullOrWhiteSpace(sessionToken))
+        if (string.IsNullOrWhiteSpace(sessionToken) || deviceId.Length > MaxDeviceIdLength)
             return AuthResult.Fail(Retcode.ParameterError);
 
         var record = await accounts.GetAccountBySessionTokenAsync(sessionToken, ct);
@@ -110,5 +123,18 @@ public sealed class AuthService(
             buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
         }
         return new string(buffer);
+    }
+
+    // catches the read-then-create race in LoginAsync: 19 = SQLITE_CONSTRAINT,
+    // 2067/1555 = unique / primary-key violation
+    private static bool IsUniqueConstraintViolation(SqliteException ex)
+    {
+        const int SqliteConstraint = 19;
+        const int SqliteConstraintUnique = 2067;
+        const int SqliteConstraintPrimaryKey = 1555;
+
+        return ex.SqliteErrorCode == SqliteConstraint
+            && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
+                || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
     }
 }

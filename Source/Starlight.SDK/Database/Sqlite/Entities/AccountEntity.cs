@@ -31,7 +31,7 @@ public sealed class AccountEntity : TrackableEntity
         set => Set(ref field, value);
     }
 
-    /// <summary>Lowercase SHA-256 hex digest, 64 chars.</summary>
+    /// <summary>Argon2id password hash formatted as <c>argon2id$[hash]$[salt]</c> (Base64 segments).</summary>
     [DbColumn("password", IsRequired = true, MaxLength = 320)]
     public string Password
     {

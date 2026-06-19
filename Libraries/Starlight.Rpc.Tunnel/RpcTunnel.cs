@@ -53,7 +53,7 @@ public abstract class RpcTunnel : IDisposable
 
     private static AsyncTunnelHandler Wrap<T>(AsyncTunnelHandler<T> handler) where T : class, IMessage
         => async msg => {
-            if (msg.TryDecode<T>() is {} t) await handler(t, msg);
+            if (msg.TryDecode<T>() is { } t) await handler(t, msg);
         };
 
     // --- request/reply ---

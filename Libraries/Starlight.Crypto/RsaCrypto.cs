@@ -6,10 +6,8 @@ namespace Starlight.Crypto;
 /// <summary>
 /// RSA helpers.
 /// </summary>
-public sealed class RsaCrypto
+public sealed class RsaCrypto : IDisposable
 {
-    public static readonly RsaCrypto Noop = new([]);
-
     private readonly RSA _privateKey;
 
     public RsaCrypto(byte[] pkcs8PrivateKey)
@@ -22,6 +20,9 @@ public sealed class RsaCrypto
         }
     }
 
+    private const string PemBeginMarker = "-----BEGIN PRIVATE KEY-----";
+    private const string PemEndMarker = "-----END PRIVATE KEY-----";
+
     /// <summary>
     /// Build an <see cref="RsaCrypto"/> from a base64-encoded PKCS#8 string
     /// (with or without PEM markers).
@@ -29,8 +30,8 @@ public sealed class RsaCrypto
     public static RsaCrypto FromBase64Pkcs8(string base64)
     {
         var cleaned = base64
-            .Replace("-----BEGIN PRIVATE KEY-----", string.Empty)
-            .Replace("-----END PRIVATE KEY-----", string.Empty)
+            .Replace(PemBeginMarker, string.Empty)
+            .Replace(PemEndMarker, string.Empty)
             .Replace("\r", string.Empty)
             .Replace("\n", string.Empty)
             .Trim();
@@ -38,10 +39,21 @@ public sealed class RsaCrypto
     }
 
     /// <summary>
-    /// Build an <see cref="RsaCrypto"/> from a PKCS#8 binary file on disk.
+    /// Build an <see cref="RsaCrypto"/> from a PKCS#8 file on disk. Both
+    /// DER- and PEM-encoded files are accepted; PEM files are routed through
+    /// <see cref="FromBase64Pkcs8"/> so the BEGIN/END markers are stripped
+    /// before the body is base64-decoded. Reading a PEM file through the
+    /// raw-bytes path would otherwise raise a <see cref="CryptographicException"/>
+    /// from <see cref="RSA.ImportPkcs8PrivateKey"/>
     /// </summary>
-    public static RsaCrypto FromPkcs8File(string path) =>
-        new(File.ReadAllBytes(path));
+    public static RsaCrypto FromPkcs8File(string path)
+    {
+        var contents = File.ReadAllText(path);
+        if (contents.Contains(PemBeginMarker, StringComparison.Ordinal))
+            return FromBase64Pkcs8(contents);
+
+        return new RsaCrypto(File.ReadAllBytes(path));
+    }
 
     /// <summary>
     /// Decrypts a base64-encoded password that the client encrypted with
@@ -71,4 +83,6 @@ public sealed class RsaCrypto
             return false;
         }
     }
+
+    public void Dispose() => _privateKey.Dispose();
 }

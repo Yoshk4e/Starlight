@@ -4,9 +4,7 @@ using System.Text;
 namespace Starlight.Crypto;
 
 /// <summary>
-/// SHA-256 helpers for password storage. We never store plain-text passwords,
-/// the database holds a SHA-256 hex digest produced by <see cref="Hash"/>,
-/// and login validates with the constant-time <see cref="Verify"/>.
+/// SHA-256 helpers for hashing and constant-time digest comparison.
 /// </summary>
 public static class Sha256Crypto
 {

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Starlight.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -86,10 +87,32 @@ public static class ServiceExtensions
         return builder;
     }
 
+#if DEBUG
+    public static IApplicationBuilder UseSdkRequestLogging(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                await next();
+            }
+            finally
+            {
+                stopwatch.Stop();
+                Log.Information("HTTP {Method} {Path}{QueryString} responded {StatusCode} in {Elapsed}ms",
+                    context.Request.Method,
+                    context.Request.Path,
+                    context.Request.QueryString,
+                    context.Response.StatusCode,
+                    stopwatch.ElapsedMilliseconds);
+            }
+        });
+    }
+#endif
+
     public static IEndpointRouteBuilder MapSdkServer(this IEndpointRouteBuilder app)
     {
-        var sdkConfig = app.ServiceProvider.GetRequiredService<SdkConfig>();
-
         app.MapGet("/", () => Results.Ok("Starlight"));
         app.MapShieldEndpoints();
         app.MapComboGranterEndpoints();

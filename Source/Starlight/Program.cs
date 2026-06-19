@@ -104,6 +104,9 @@ internal static class Program
 
             // Prepare the application.
             var app = builder.Build();
+#if DEBUG
+            app.UseSdkRequestLogging();
+#endif
             app.MapSdkServer();
 
             StartTime.Stop();

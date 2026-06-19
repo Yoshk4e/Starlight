@@ -20,6 +20,12 @@ public static class ComboGranterEndpoints
         {
             routes.MapPost($"{prefix}/v2/login", HandleLoginV2Async);
             routes.MapPost($"{prefix}/login", HandleLoginV2Async);
+            routes.MapGet($"{prefix}/getConfig", HandleGetConfig);
+            routes.MapPost($"{prefix}/getConfig", HandleGetConfig);
+            routes.MapPost($"{prefix}/compareProtocolVersion", HandleCompareProtocolVersion);
+            routes.MapPost($"{prefix}/getProtocol", HandleCompareProtocolVersion);
+            routes.MapGet($"{prefix}/compareProtocolVersion", HandleCompareProtocolVersionGet);
+            routes.MapGet($"{prefix}/getProtocol", HandleCompareProtocolVersionGet);
         }
     }
 
@@ -136,5 +142,129 @@ public static class ComboGranterEndpoints
         };
 
         return string.Join("&", pairs.Select(p => $"{p.Key}={p.Value}"));
+    }
+
+    /// <summary>
+    /// Handles <c>GET/POST /hk4e_global/combo/granter/api/getConfig</c>.
+    /// Returns the SDK-level configuration: announce URL, log level, QR
+    /// login settings, etc. Client-type-specific switch configs (jpush,
+    /// appsflyer, notifications) are populated per platform.
+    /// </summary>
+    private static IResult HandleGetConfig(
+        [FromQuery] int? app_id,
+        [FromQuery] int? channel_id,
+        [FromQuery] int? client_type,
+        [FromServices] SdkConfig sdkConfig)
+    {
+        if (app_id is null || channel_id is null || client_type is null
+            || client_type < 1 || client_type > 13)
+        {
+            return Results.Ok(ApiResponse.From(Retcode.SystemError));
+        }
+
+        if (!SdkUtils.IsValidAppId(app_id.GetValueOrDefault()))
+            return Results.Ok(ApiResponse.From(Retcode.SystemError));
+
+        var s = sdkConfig.Shield;
+        var data = new ComboGranterConfigData {
+            Protocol = channel_id != 1,
+            QrEnabled = s.UseQRLogin,
+            LogLevel = s.ApiLogLevel,
+            AnnounceUrl = s.AnnouncementUrl,
+            PushAliasType = s.AliasPushType,
+            DisableYsdkGuard = s.DisableYSDKGuard,
+            EnableAnnouncePicPopup = s.EnableAnnouncementPopUp,
+            AppName = s.AppName,
+            QrCloudDisplayName = s.QrCloudDisplayName,
+            EnableUserCenter = s.UseAccountCenter,
+            FunctionalSwitchConfigs = new()
+        };
+
+        // QR settings only apply to PC/Cloud PC (client_type 3 and 9).
+        if (client_type == 3 || client_type == 9)
+        {
+            data.QrEnabledApps = s.QrApps;
+            data.QrAppIcons = s.QrAppIcons;
+        }
+
+        // Per-platform functional_switch_configs.
+        switch (client_type)
+        {
+            case 1: // iOS
+                data.FunctionalSwitchConfigs["jpush"] = s.JPushConfig;
+                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+                break;
+            case 2: // Android
+                data.FunctionalSwitchConfigs["jpush"] = s.JPushConfig;
+                data.FunctionalSwitchConfigs["allow_notification"] = s.AllowNotificationConfig;
+                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+                break;
+            case 8: // Cloud Android
+                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+                break;
+        }
+
+        return Results.Ok(ApiResponse.Ok(data));
+    }
+
+    private static IResult HandleCompareProtocolVersion(
+        [FromBody] CompareProtocolVersionRequest? body)
+    {
+        if (body is null || string.IsNullOrEmpty(body.Language)
+            || !SdkUtils.IsValidLanguage(body.Language))
+        {
+            return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
+        }
+
+        if (!SdkUtils.IsValidAppId(body.AppId))
+            return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
+
+        var isModified = body.ChannelId != 1;
+
+        var data = new CompareProtocolVersionData {
+            Modified = isModified,
+            Protocol = isModified
+                ? new ProtocolInfo {
+                    Id = 0,
+                    AppId = body.AppId,
+                    Language = body.Language!,
+                    Major = body.Major,
+                    Minimum = body.Minimum
+                }
+                : null
+        };
+
+        return Results.Ok(ApiResponse.Ok(data));
+    }
+
+
+    private static IResult HandleCompareProtocolVersionGet(
+        [FromQuery] int? app_id,
+        [FromQuery] string? language,
+        [FromQuery] int? major,
+        [FromQuery] int? minimum,
+        [FromQuery] int? channel_id)
+    {
+        if (app_id is null || string.IsNullOrEmpty(language)
+            || !SdkUtils.IsValidLanguage(language) || major is null || minimum is null)
+        {
+            return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
+        }
+
+        if (!SdkUtils.IsValidAppId(app_id.Value))
+            return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
+
+        var data = new CompareProtocolVersionData {
+            Modified = true,
+            Protocol = new ProtocolInfo {
+                Id = 5,
+                AppId = app_id.Value,
+                Language = language!,
+                Major = major.Value,
+                Minimum = minimum.Value
+            }
+        };
+
+        return Results.Ok(ApiResponse.Ok(data));
     }
 }

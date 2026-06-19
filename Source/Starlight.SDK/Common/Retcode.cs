@@ -32,6 +32,9 @@ public enum Retcode
     InvalidJsonBody = -502,
     LauncherNotFound = -1200,
 
+    ComboInvalidKey = 6,
+    ComboPlatformNoConfig = 7,
+
     MaPassportSystemError = -3000,
     MaPassportParameterError = -3001,
     MaPassportAccountFormatError = -3002,
@@ -41,6 +44,8 @@ public enum Retcode
     MaPassportAccountNotExist = -3203,
     MaPassportCaptchaMismatch = -3205,
     MaPassportAccountMismatch = -3208,
+    MaPassportAccountNewDeviceDetected = -3239,
+    MaPassportQrCodeExpired = -3501,
 
     EmptyPaymentToken = -7000,
     InvalidPaymentToken = -7001,

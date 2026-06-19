@@ -6,6 +6,7 @@ namespace Starlight.SDK.Database.Impl.Entities;
 [DbTable("accounts")]
 [DbIndex("ix_player_accounts_id", nameof(Id), IsUnique = true)]
 [DbIndex("ix_player_accounts_username", nameof(Username), IsUnique = true)]
+[DbIndex("ix_player_accounts_email", nameof(Email))]
 [DbIndex("ix_player_accounts_session_token", nameof(SessionToken))]
 public sealed class AccountEntity : TrackableEntity
 {

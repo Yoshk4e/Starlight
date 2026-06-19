@@ -93,6 +93,11 @@ public static class ServiceExtensions
         app.MapGet("/", () => Results.Ok("Starlight"));
         app.MapShieldEndpoints();
         app.MapComboGranterEndpoints();
+        app.MapWebstaticEndpoints();
+        app.MapDeviceFingerprintEndpoints();
+        app.MapComboBoxEndpoints();
+        app.MapAbTestEndpoints();
+        app.MapPassportEndpoints();
         return app;
     }
 }

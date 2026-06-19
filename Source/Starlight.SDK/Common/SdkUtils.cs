@@ -1,6 +1,6 @@
 namespace Starlight.SDK.Common;
 
-public static class SdkValidations
+public static class SdkUtils
 {
     public static bool IsValidGameBiz(string? biz)
         => !string.IsNullOrEmpty(biz) && GameBiz.All.Contains(biz);

@@ -49,8 +49,8 @@ public static class ShieldEndpoints
             return Results.Ok(ApiResponse.From(Retcode.LoginNetworkAtRisk));
         }
 
-        if (!SdkValidations.IsValidGameBiz(body.GameKey)
-            || !SdkValidations.IsValidLanguage(language))
+        if (!SdkUtils.IsValidGameBiz(body.GameKey)
+            || !SdkUtils.IsValidLanguage(language))
         {
             return Results.Ok(ApiResponse.From(Retcode.LoginNetworkAtRisk));
         }

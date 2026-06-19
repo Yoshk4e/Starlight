@@ -46,7 +46,7 @@ public static class ComboGranterEndpoints
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
         }
 
-        if (!SdkValidations.IsValidAppId(body.AppId.GetValueOrDefault()))
+        if (!SdkUtils.IsValidAppId(body.AppId.GetValueOrDefault()))
         {
             logger.LogInformation("Rejected combo granter login: app_id {AppId} is not an ApplicationId", body.AppId);
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));

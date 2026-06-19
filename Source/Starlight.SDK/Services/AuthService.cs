@@ -67,8 +67,7 @@ public sealed class AuthService(
 
             record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
             logger.LogInformation("Auto-created account {Account} (id {Id}) on first login", account, record.Id);
-        }
-        else if (!Argon2Crypto.Verify(password, record.PasswordHash))
+        } else if (!Argon2Crypto.Verify(password, record.PasswordHash))
         {
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
         }

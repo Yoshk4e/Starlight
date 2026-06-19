@@ -34,9 +34,6 @@ jobs:
 
     inspect-code:
         name: Code Quality
-        # Only gate pull requests on formatting; runs on Windows so CRLF line
-        # endings and Rider/ReSharper formatting match the committed .editorconfig.
-        if: github.event_name == 'pull_request'
         runs-on: windows-latest
         timeout-minutes: 60
         steps:

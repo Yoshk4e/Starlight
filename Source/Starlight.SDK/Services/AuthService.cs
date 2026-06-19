@@ -38,7 +38,8 @@ public sealed class AuthService(
     )
     {
         if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password)
-                                               || account.Length > MaxAccountLength || deviceId.Length > MaxDeviceIdLength)
+                                               || string.IsNullOrWhiteSpace(deviceId) || account.Length > MaxAccountLength ||
+                                               deviceId.Length > MaxDeviceIdLength)
             return AuthResult.Fail(Retcode.ParameterError);
 
         // client wraps the password with our RSA public key before sending it
@@ -99,7 +100,7 @@ public sealed class AuthService(
         CancellationToken ct
     )
     {
-        if (string.IsNullOrWhiteSpace(sessionToken) || deviceId.Length > MaxDeviceIdLength)
+        if (string.IsNullOrWhiteSpace(sessionToken) || string.IsNullOrWhiteSpace(deviceId) || deviceId.Length > MaxDeviceIdLength)
             return AuthResult.Fail(Retcode.ParameterError);
 
         var record = await accounts.GetAccountBySessionTokenAsync(sessionToken, ct);

@@ -19,6 +19,14 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         return entity is null ? null : Map(entity);
     }
 
+    public async Task<Account?> GetAccountByEmailAsync(string email, CancellationToken ct)
+    {
+        var lower = email?.ToLowerInvariant();
+        var entities = await db.QueryAsync<AccountEntity>(a => a.Email == lower, ct);
+        var entity = entities.FirstOrDefault();
+        return entity is null ? null : Map(entity);
+    }
+
     public async Task<Account?> GetAccountBySessionTokenAsync(string token, CancellationToken ct)
     {
         var entities = await db.QueryAsync<AccountEntity>(a => a.SessionToken == token, ct);

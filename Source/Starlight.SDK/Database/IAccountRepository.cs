@@ -9,6 +9,13 @@ public interface IAccountRepository
     /// <summary>Lookup by login name (i.e. the <c>account</c> body field).</summary>
     Task<Account?> GetAccountByUsernameAsync(string username, CancellationToken ct);
 
+    /// <summary>
+    /// Lookup by the email address registered against the account. Used by
+    /// the ma-passport <c>appLoginByPassword</c> / <c>webLoginByPassword</c>
+    /// flows where the client sends an email rather than a username.
+    /// </summary>
+    Task<Account?> GetAccountByEmailAsync(string email, CancellationToken ct);
+
     /// <summary>Lookup by the session token previously issued from shield login.</summary>
     Task<Account?> GetAccountBySessionTokenAsync(string token, CancellationToken ct);
 
@@ -25,3 +32,4 @@ public interface IAccountRepository
     /// </summary>
     Task UpdateSessionAsync(Account account, CancellationToken ct);
 }
+

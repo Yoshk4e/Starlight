@@ -46,11 +46,16 @@ public static class RetcodeMessages
             [Retcode.MaPassportAccountNotExist] = "Account does not exist",
             [Retcode.MaPassportCaptchaMismatch] = "Captcha mismatch",
             [Retcode.MaPassportAccountMismatch] = "Account mismatch",
+            [Retcode.MaPassportAccountNewDeviceDetected] = "New device detected, please verify your identity",
+            [Retcode.MaPassportQrCodeExpired] = "QR code expired",
 
             [Retcode.BindRealPersonErrorParameters] = "Real-name binding parameter error",
             [Retcode.BindRealPersonInvalidTicket] = "Real-name binding ticket invalid",
 
-            [Retcode.LauncherNotFound] = "Launcher not found"
+            [Retcode.LauncherNotFound] = "Launcher not found",
+
+            [Retcode.ComboInvalidKey] = "RetCode_InvalidKey",
+            [Retcode.ComboPlatformNoConfig] = "RetCode_NoConfig"
         }.ToFrozenDictionary();
 
     public static string Get(Retcode code) =>

@@ -34,3 +34,24 @@ public sealed class ComboLoginV2Data
     [JsonPropertyName("token")]
     public string? Token { get; set; }
 }
+
+/// <summary>
+/// Body of <c>POST /hk4e_global/combo/granter/api/compareProtocolVersion</c>.
+/// </summary>
+public sealed class CompareProtocolVersionRequest
+{
+    [JsonPropertyName("app_id")]
+    public int AppId { get; set; }
+
+    [JsonPropertyName("channel_id")]
+    public int ChannelId { get; set; }
+
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
+
+    [JsonPropertyName("major")]
+    public int Major { get; set; }
+
+    [JsonPropertyName("minimum")]
+    public int Minimum { get; set; }
+}

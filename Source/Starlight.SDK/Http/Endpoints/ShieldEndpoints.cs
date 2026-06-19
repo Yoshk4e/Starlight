@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Starlight.Common;
 using Starlight.SDK.Common;
+using Starlight.SDK.Database;
 using Starlight.SDK.Http.Models;
 using Starlight.SDK.Services;
 
@@ -11,8 +12,6 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ShieldEndpoints
 {
-    /// <summary>Maximum accepted length of the <c>x-rpc-device_id</c> header.</summary>
-    private const int MaxDeviceIdLength = 128;
 
     public static void MapShieldEndpoints(this IEndpointRouteBuilder routes)
     {
@@ -32,6 +31,7 @@ public static class ShieldEndpoints
         [FromHeader(Name = "x-rpc-language")] string? language,
         [FromServices] IAuthService auth,
         [FromServices] IGeoIpLookup geoIp,
+        [FromServices] IAccountRepository accounts,
         [FromServices] SdkConfig sdkConfig,
         CancellationToken ct
     )
@@ -44,7 +44,7 @@ public static class ShieldEndpoints
             || string.IsNullOrWhiteSpace(body.Password)
             || body.IsCrypto is null
             || string.IsNullOrWhiteSpace(deviceId)
-            || !IsValidDeviceId(deviceId))
+            || !SdkUtils.IsValidDeviceId(deviceId))
         {
             return Results.Ok(ApiResponse.From(Retcode.LoginNetworkAtRisk));
         }
@@ -77,7 +77,10 @@ public static class ShieldEndpoints
             country = sdkConfig.DefaultCountryCode;
 
         if (!string.Equals(acc.Country, country, StringComparison.Ordinal))
+        {
             acc.Country = country;
+            await accounts.UpdateSessionAsync(acc, ct);
+        }
 
         var realNameOperation = string.IsNullOrWhiteSpace(acc.RealNameOperation) ? sdkConfig.DefaultRealNameOperation : acc.RealNameOperation;
 
@@ -99,24 +102,4 @@ public static class ShieldEndpoints
         return Results.Ok(ApiResponse.Ok(payload));
     }
 
-    /// <summary>
-    /// Validates the device id before it is forwarded downstream. Rejects
-    /// oversized values (would exceed DB column limits when serialized into
-    /// <c>known_device_ids</c>) and values that contain the pipe delimiter
-    /// or control characters, both of which would corrupt the pipe-delimited
-    /// storage format.
-    /// </summary>
-    private static bool IsValidDeviceId(string value)
-    {
-        if (value.Length > MaxDeviceIdLength || value.Contains('|'))
-            return false;
-
-        foreach (var ch in value)
-        {
-            if (char.IsControl(ch))
-                return false;
-        }
-
-        return true;
-    }
 }

@@ -41,7 +41,8 @@ public static class ComboGranterEndpoints
             || body.ChannelId is null
             || string.IsNullOrEmpty(body.Data)
             || string.IsNullOrEmpty(body.Device)
-            || string.IsNullOrEmpty(deviceId))
+            || string.IsNullOrEmpty(deviceId)
+            || !SdkUtils.IsValidDeviceId(deviceId))
         {
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
         }

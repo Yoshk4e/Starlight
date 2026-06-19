@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Starlight.Common;
+using Starlight.SDK.Common;
 
 namespace Starlight.SDK.Http.Models;
 
@@ -20,7 +22,7 @@ public sealed class ComboGranterLoginResponse
     public bool Heartbeat { get; init; }
 
     [JsonPropertyName("account_type")]
-    public int AccountType { get; init; }
+    public AccountType AccountType { get; init; } = AccountType.Normal;
 
     [JsonPropertyName("fatigue_remind")]
     public string? FatigueRemind { get; init; }
@@ -36,7 +38,7 @@ public sealed class ComboInnerData
     public bool Guest { get; init; }
 
     [JsonPropertyName("country_code")]
-    public string CountryCode { get; init; } = "US";
+    public string CountryCode { get; init; } = SdkDefaults.DefaultCountryCode;
 
     [JsonPropertyName("is_new_register")]
     public bool IsNewRegister { get; init; }

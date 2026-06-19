@@ -111,7 +111,7 @@ public static class ComboGranterEndpoints
         if (string.IsNullOrWhiteSpace(countryCode))
             countryCode = sdkConfig.DefaultCountryCode;
 
-        var isGuest = acc.AccountType == 0;
+        var isGuest = acc.AccountType == AccountType.Guest;
 
         var innerJson = JsonSerializer.Serialize(new ComboInnerData {
             Guest = isGuest,
@@ -154,10 +154,11 @@ public static class ComboGranterEndpoints
         [FromQuery] int? app_id,
         [FromQuery] int? channel_id,
         [FromQuery] int? client_type,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         if (app_id is null || channel_id is null || client_type is null
-            || client_type < 1 || client_type > 13)
+            || !Enum.IsDefined(typeof(PlatformId), client_type.Value))
         {
             return Results.Ok(ApiResponse.From(Retcode.SystemError));
         }
@@ -165,9 +166,13 @@ public static class ComboGranterEndpoints
         if (!SdkUtils.IsValidAppId(app_id.GetValueOrDefault()))
             return Results.Ok(ApiResponse.From(Retcode.SystemError));
 
+        var platform = (PlatformId)client_type.Value;
         var s = sdkConfig.Shield;
+
         var data = new ComboGranterConfigData {
-            Protocol = channel_id != 1,
+            // channel_id == Official (1) -> protocol not modified;
+            // any other channel -> protocol modified (i.e. needs ack).
+            Protocol = channel_id != (int)ChannelId.Official,
             QrEnabled = s.UseQRLogin,
             LogLevel = s.ApiLogLevel,
             AnnounceUrl = s.AnnouncementUrl,
@@ -177,30 +182,30 @@ public static class ComboGranterEndpoints
             AppName = s.AppName,
             QrCloudDisplayName = s.QrCloudDisplayName,
             EnableUserCenter = s.UseAccountCenter,
-            FunctionalSwitchConfigs = new()
+            FunctionalSwitchConfigs = new Dictionary<string, bool>()
         };
 
-        // QR settings only apply to PC/Cloud PC (client_type 3 and 9).
-        if (client_type == 3 || client_type == 9)
+        // QR settings only apply to PC-style platforms.
+        if (platform.IsPcLike())
         {
             data.QrEnabledApps = s.QrApps;
             data.QrAppIcons = s.QrAppIcons;
         }
 
         // Per-platform functional_switch_configs.
-        switch (client_type)
+        switch (platform)
         {
-            case 1: // iOS
-                data.FunctionalSwitchConfigs["jpush"] = s.JPushConfig;
-                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+            case PlatformId.Ios:
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.JPush] = s.JPushConfig;
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
                 break;
-            case 2: // Android
-                data.FunctionalSwitchConfigs["jpush"] = s.JPushConfig;
-                data.FunctionalSwitchConfigs["allow_notification"] = s.AllowNotificationConfig;
-                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+            case PlatformId.Android:
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.JPush] = s.JPushConfig;
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.AllowNotification] = s.AllowNotificationConfig;
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
                 break;
-            case 8: // Cloud Android
-                data.FunctionalSwitchConfigs["initialize_appsflyer"] = s.InitializeAppsFlyerConfig;
+            case PlatformId.CloudAndroid:
+                data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
                 break;
         }
 
@@ -208,10 +213,11 @@ public static class ComboGranterEndpoints
     }
 
     private static IResult HandleCompareProtocolVersion(
-        [FromBody] CompareProtocolVersionRequest? body)
+        [FromBody] CompareProtocolVersionRequest? body
+    )
     {
         if (body is null || string.IsNullOrEmpty(body.Language)
-            || !SdkUtils.IsValidLanguage(body.Language))
+                         || !SdkUtils.IsValidLanguage(body.Language))
         {
             return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
         }
@@ -219,34 +225,34 @@ public static class ComboGranterEndpoints
         if (!SdkUtils.IsValidAppId(body.AppId))
             return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
 
-        var isModified = body.ChannelId != 1;
+        var isModified = body.ChannelId != (int)ChannelId.Official;
 
         var data = new CompareProtocolVersionData {
             Modified = isModified,
-            Protocol = isModified
-                ? new ProtocolInfo {
+            Protocol = isModified ?
+                new ProtocolInfo {
                     Id = 0,
                     AppId = body.AppId,
                     Language = body.Language!,
                     Major = body.Major,
                     Minimum = body.Minimum
-                }
-                : null
+                } :
+                null
         };
 
         return Results.Ok(ApiResponse.Ok(data));
     }
-
 
     private static IResult HandleCompareProtocolVersionGet(
         [FromQuery] int? app_id,
         [FromQuery] string? language,
         [FromQuery] int? major,
         [FromQuery] int? minimum,
-        [FromQuery] int? channel_id)
+        [FromQuery] int? channel_id
+    )
     {
         if (app_id is null || string.IsNullOrEmpty(language)
-            || !SdkUtils.IsValidLanguage(language) || major is null || minimum is null)
+                           || !SdkUtils.IsValidLanguage(language) || major is null || minimum is null)
         {
             return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
         }

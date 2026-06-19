@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using Starlight.Common;
+using Starlight.SDK.Common;
 
 namespace Starlight.SDK.Http.Models;
 
@@ -10,8 +12,11 @@ namespace Starlight.SDK.Http.Models;
 /// </summary>
 public sealed class DeviceExtListData
 {
+    /// <summary>
+    /// HTTP-style status code. See <see cref="DeviceExtStatusCode"/>.
+    /// </summary>
     [JsonPropertyName("code")]
-    public int Code { get; set; }
+    public DeviceExtStatusCode Code { get; set; } = DeviceExtStatusCode.Ok;
 
     [JsonPropertyName("msg")]
     public string? Msg { get; set; }
@@ -66,7 +71,7 @@ public sealed class ProtocolInfo
     public int Minimum { get; set; }
 
     [JsonPropertyName("create_time")]
-    public string CreateTime { get; init; } = "0";
+    public string CreateTime { get; init; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("teenager_proto")]
     public string TeenagerProto { get; init; } = string.Empty;
@@ -91,7 +96,7 @@ public sealed class ComboGranterConfigData
     public bool QrEnabled { get; set; }
 
     [JsonPropertyName("log_level")]
-    public string LogLevel { get; set; } = "DEBUG";
+    public string LogLevel { get; set; } = SdkDefaults.ApiLogLevel;
 
     [JsonPropertyName("announce_url")]
     public string AnnounceUrl { get; set; } = string.Empty;
@@ -120,6 +125,11 @@ public sealed class ComboGranterConfigData
     [JsonPropertyName("enable_user_center")]
     public bool EnableUserCenter { get; set; }
 
+    /// <summary>
+    /// Per-platform functional switch configs. Keys are
+    /// <see cref="FunctionalSwitchKey"/> constants; values are the
+    /// underlying boolean flag.
+    /// </summary>
     [JsonPropertyName("functional_switch_configs")]
     public Dictionary<string, bool> FunctionalSwitchConfigs { get; set; } = new();
 }
@@ -143,16 +153,16 @@ public sealed class ShieldLoadConfigData
     public required string Client { get; init; }
 
     [JsonPropertyName("identity")]
-    public string Identity { get; init; } = "I_IDENTITY";
+    public string Identity { get; init; } = SdkDefaults.ShieldIdentity;
 
     [JsonPropertyName("guest")]
     public bool Guest { get; set; }
 
     [JsonPropertyName("ignore_versions")]
-    public string IgnoreVersions { get; init; } = "2.6.0";
+    public string IgnoreVersions { get; init; } = SdkDefaults.ShieldIgnoreVersions;
 
     [JsonPropertyName("scene")]
-    public string Scene { get; init; } = "S_NORMAL";
+    public string Scene { get; init; } = SdkDefaults.ShieldSceneNormal;
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
@@ -178,8 +188,14 @@ public sealed class ShieldLoadConfigData
     [JsonPropertyName("enable_ps_bind_account")]
     public bool EnablePsBindAccount { get; set; }
 
+    /// <summary>
+    /// Per-app third-party login token configurations. Typed as
+    /// <see cref="ThirdPartyTokenConfig"/> rather than
+    /// <c>Dictionary&lt;string, object&gt;</c> so the inner shape is
+    /// compile-checked. Keys are <see cref="ThirdPartyApp"/> constants.
+    /// </summary>
     [JsonPropertyName("thirdparty_login_configs")]
-    public Dictionary<string, Dictionary<string, object>> ThirdpartyLoginConfigs { get; set; } = new();
+    public Dictionary<string, ThirdPartyTokenConfig> ThirdpartyLoginConfigs { get; set; } = new();
 
     [JsonPropertyName("initialize_firebase")]
     public bool InitializeFirebase { get; set; }
@@ -200,10 +216,10 @@ public sealed class ShieldLoadConfigData
     public bool EnableLogo18 { get; set; }
 
     [JsonPropertyName("logo_height")]
-    public string LogoHeight { get; set; } = "0";
+    public string LogoHeight { get; set; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("logo_width")]
-    public string LogoWidth { get; set; } = "0";
+    public string LogoWidth { get; set; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("enable_cx_bind_account")]
     public bool EnableCxBindAccount { get; set; }
@@ -224,9 +240,15 @@ public sealed class ShieldLoadConfigData
     public bool HoyoplayAuthLogin { get; set; }
 }
 
-
 public sealed class ComboBoxConfigData
 {
+    /// <summary>
+    /// Per-platform SDK config bag. Keys are
+    /// <see cref="ComboBoxConfigKey"/> constants; values are either a
+    /// stringified boolean, a stringified integer, or a JSON-encoded
+    /// object string. The shape is intentionally <c>string</c>-valued
+    /// because the upstream client expects all values as strings.
+    /// </summary>
     [JsonPropertyName("vals")]
     public Dictionary<string, string> Vals { get; set; } = new();
 }
@@ -262,7 +284,7 @@ public sealed class MaPassportConfigData
     public List<string> RealnameWhitelist { get; set; } = new();
 
     [JsonPropertyName("guardian_age_limit")]
-    public string GuardianAgeLimit { get; set; } = "14";
+    public string GuardianAgeLimit { get; set; } = SdkDefaults.GuardianAgeLimit;
 
     [JsonPropertyName("disable_mmt")]
     public bool DisableMmt { get; set; }
@@ -277,7 +299,7 @@ public sealed class MaPassportIpInfo
     public string CountryCode { get; set; } = string.Empty;
 
     [JsonPropertyName("language")]
-    public string Language { get; set; } = "en-us";
+    public string Language { get; set; } = SdkDefaults.MaPassportLanguage;
 
     [JsonPropertyName("area_code")]
     public string AreaCode { get; set; } = string.Empty;

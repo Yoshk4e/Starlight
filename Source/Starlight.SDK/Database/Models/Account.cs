@@ -1,3 +1,6 @@
+using Starlight.Common;
+using Starlight.SDK.Common;
+
 namespace Starlight.SDK.Database.Models;
 
 /// <summary>
@@ -35,7 +38,12 @@ public sealed class Account
     /// </summary>
     public string Country { get; set; } = string.Empty;
 
-    public string RealNameOperation { get; set; } = "None";
+    /// <summary>
+    /// Real-name flow marker. One of the constants on
+    /// <see cref="RealNameOperations"/>. Stored as a string so unknown
+    /// values pass through without extra plumbing.
+    /// </summary>
+    public string RealNameOperation { get; set; } = RealNameOperations.None;
 
     /// <summary>Whether the account must still complete real-person verification.</summary>
     public bool RequireRealPerson { get; set; }
@@ -50,9 +58,9 @@ public sealed class Account
     public bool RequireDeviceGrant { get; set; }
 
     /// <summary>
-    /// Combo account type. <c>0</c> = guest, <c>1</c> = normal account.
+    /// Combo account type. See <see cref="Starlight.SDK.Common.AccountType"/>.
     /// </summary>
-    public int AccountType { get; set; } = 1;
+    public AccountType AccountType { get; set; } = AccountType.Normal;
 
     /// <summary>
     /// Token returned by the shield <c>login</c> endpoint and consumed by

@@ -22,29 +22,29 @@ public static class AbTestEndpoints
 
     private static IResult HandleExperimentList(
         [FromBody] ExperimentListRequest? body,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
-
         if (body is null || string.IsNullOrEmpty(body.SceneId))
         {
             return Results.Ok(new ExperimentListResponse {
                 Retcode = (int)Retcode.Fail,
                 Success = false,
-                Message = "参数错误",
-                Data = new()
+                Message = ExperimentListMessages.MissingSceneId,
+                Data = new List<ExperimentData>()
             });
         }
 
-        var data = sdkConfig.AbTest.ReturnEmptyList
-            ? new List<ExperimentData>()
-            : sdkConfig.AbTest.Experiments
+        var data = sdkConfig.AbTest.ReturnEmptyList ?
+            new List<ExperimentData>() :
+            sdkConfig.AbTest.Experiments
                 .Select(e => new ExperimentData {
                     Code = e.Code,
                     Type = e.Type,
                     ConfigId = e.ConfigId,
                     PeriodId = e.PeriodId,
                     Version = e.Version,
-                    Configs = e.Configs ?? new(),
+                    Configs = e.Configs ?? new Dictionary<string, string>(),
                     SceneWhiteList = e.SceneWhiteList,
                     ExperimentWhiteList = e.ExperimentWhiteList
                 })
@@ -56,5 +56,10 @@ public static class AbTestEndpoints
             Message = string.Empty,
             Data = data
         });
+    }
+
+    private static class ExperimentListMessages
+    {
+        public const string MissingSceneId = "Parameter error";
     }
 }

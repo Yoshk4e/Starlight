@@ -121,30 +121,29 @@ public sealed class SdkConfig
 
     /// <summary>
     /// ISO-3166 country code returned to the client when GeoIP lookup is
-    /// unavailable or disabled. Corresponds to the literal <c>"US"</c>
-    /// value that was previously baked into <see cref="Starlight.SDK.Http.Models.ShieldAccountInfo"/>
-    /// and <see cref="Starlight.SDK.Http.Models.ComboInnerData"/> as a
-    /// default.
+    /// unavailable or disabled. Defaults to
+    /// <see cref="SdkDefaults.DefaultCountryCode"/>.
     /// </summary>
-    public string DefaultCountryCode { get; set; } = "US";
+    public string DefaultCountryCode { get; set; } = SdkDefaults.DefaultCountryCode;
 
     /// <summary>
     /// Value reported in <c>realname_operation</c> when no real-name flow
-    /// is pending for the account.
+    /// is pending for the account. Defaults to
+    /// <see cref="RealNameOperations.None"/>.
     /// </summary>
-    public string DefaultRealNameOperation { get; set; } = "None";
+    public string DefaultRealNameOperation { get; set; } = RealNameOperations.None;
 
     /// <summary>
     /// Value reported in <c>combo_id</c> on the combo granter login
-    /// response.
+    /// response. Defaults to <see cref="SdkDefaults.DefaultComboId"/>.
     /// Still go no idea what "ComboID" is really used for maybe hiro could know
     /// </summary>
-    public string DefaultComboId { get; set; } = "0";
+    public string DefaultComboId { get; set; } = SdkDefaults.DefaultComboId;
 
     /// <summary>
     /// Minimum accepted length of a (decrypted) password.
     /// </summary>
-    public int MinPasswordLength { get; set; } = 15;
+    public int MinPasswordLength { get; set; } = 8;
 
     /// <summary>
     /// Configuration for the real ip-api.com GeoIP lookup. When
@@ -336,22 +335,37 @@ public sealed class SdkShieldConfig
     public bool DisableTryVerify { get; set; } = false;
     public bool EnableRegisterHide { get; set; } = true;
     public bool EnableLoginFlowNotification { get; set; } = true;
-    public List<string> ThirdPartyApps { get; set; } = new() { "ap", "gl", "fb", "tw", "gc", "tp" };
+    public List<string> ThirdPartyApps { get; set; } = new() {
+        ThirdPartyApp.Apple,
+        ThirdPartyApp.Google,
+        ThirdPartyApp.Facebook,
+        ThirdPartyApp.Twitter,
+        ThirdPartyApp.GameCenter,
+        ThirdPartyApp.TapTap
+    };
     public Dictionary<string, string> ThirdPartyIgnored { get; set; } = new();
-    public Dictionary<string, Dictionary<string, object>> ThirdPartyConfigs { get; set; } = new() {
-        ["fb"] = new() { ["token_type"] = "TK_GAME_TOKEN", ["game_token_expires_in"] = 2592000L },
-        ["gc"] = new() { ["token_type"] = "TK_GAME_TOKEN", ["game_token_expires_in"] = 604800L },
-        ["tw"] = new() { ["token_type"] = "TK_GAME_TOKEN", ["game_token_expires_in"] = 2592000L },
-        ["ap"] = new() { ["token_type"] = "TK_GAME_TOKEN", ["game_token_expires_in"] = 604800L },
-        ["gl"] = new() { ["token_type"] = "TK_GAME_TOKEN", ["game_token_expires_in"] = 2592000L }
+
+    /// <summary>
+    /// Per-app third-party login token configurations. Typed as
+    /// <see cref="ThirdPartyTokenConfig"/> rather than
+    /// <c>Dictionary&lt;string, Dictionary&lt;string, object&gt;&gt;</c>;
+    /// keys are <see cref="ThirdPartyApp"/> constants.
+    /// </summary>
+    public Dictionary<string, ThirdPartyTokenConfig> ThirdPartyConfigs { get; set; } = new() {
+        [ThirdPartyApp.Facebook] = new ThirdPartyTokenConfig { GameTokenExpiresIn = TokenExpiry.ThirtyDays },
+        [ThirdPartyApp.GameCenter] = new ThirdPartyTokenConfig { GameTokenExpiresIn = TokenExpiry.SevenDays },
+        [ThirdPartyApp.Twitter] = new ThirdPartyTokenConfig { GameTokenExpiresIn = TokenExpiry.ThirtyDays },
+        [ThirdPartyApp.Apple] = new ThirdPartyTokenConfig { GameTokenExpiresIn = TokenExpiry.SevenDays },
+        [ThirdPartyApp.Google] = new ThirdPartyTokenConfig { GameTokenExpiresIn = TokenExpiry.ThirtyDays }
     };
     public List<string> BBSAuthLoginIgnored { get; set; } = new();
     public List<string> HoyoLabAuthIgnore { get; set; } = new();
 
     // /hk4e_global/combo/granter/api/getConfig
     public bool UseQRLogin { get; set; } = true;
-    public string ApiLogLevel { get; set; } = "DEBUG";
-    public string AnnouncementUrl { get; set; } = "https://sdk.mihoyo.com/hk4e/announcement/index.html?sdk_presentation_style=fullscreen&sdk_screen_transparent=true&auth_appid=announcement&authkey_ver=1&game_biz=hk4e_cn&sign_type=2&version=2.33&game=hk4e#/";
+    public string ApiLogLevel { get; set; } = SdkDefaults.ApiLogLevel;
+    public string AnnouncementUrl { get; set; } =
+        "https://sdk.mihoyo.com/hk4e/announcement/index.html?sdk_presentation_style=fullscreen&sdk_screen_transparent=true&auth_appid=announcement&authkey_ver=1&game_biz=hk4e_cn&sign_type=2&version=2.33&game=hk4e#/";
     public int AliasPushType { get; set; } = 2;
     public bool DisableYSDKGuard { get; set; } = false;
     public bool EnableAnnouncementPopUp { get; set; } = true;
@@ -395,7 +409,7 @@ public sealed class SdkComboBoxConfig
     public int HttpKeepAliveTime { get; set; } = 60;
     public bool EnableListPriceTierV2 { get; set; } = true;
     public bool EnableNetworkReport { get; set; } = true;
-    public List<int> NetworkStatusCodes { get; set; } = new() { 200 };
+    public List<int> NetworkStatusCodes { get; set; } = new() { HttpStatus.Ok };
     public List<string> NetworkUrlPaths { get; set; } = new() { "combo/postman/device/setAlias" };
     public List<string> NetworkConfigs { get; set; } = new() {
         "report_set_info", "notice_close_notice", "apm_crash_add_custom_key_value",
@@ -443,10 +457,10 @@ public sealed class SdkComboBoxConfig
 /// </summary>
 public sealed class SdkMaPassportConfig
 {
-    public string Language { get; set; } = "en-us";
+    public string Language { get; set; } = SdkDefaults.MaPassportLanguage;
     public List<string> AreaWhitelist { get; set; } = new() { "KR" };
     public List<string> RealnameWhitelist { get; set; } = new();
-    public string GuardianAgeLimit { get; set; } = "14";
+    public string GuardianAgeLimit { get; set; } = SdkDefaults.GuardianAgeLimit;
     public bool DisableMmt { get; set; } = false;
     public bool ShowBirthday { get; set; } = false;
 
@@ -472,7 +486,7 @@ public sealed class SdkMaPassportLoginConfig
     /// Maximum accepted length of an (RSA-decrypted) password for the
     /// <c>appLoginByPassword</c> endpoint.
     /// </summary>
-    public int MaxPasswordLength { get; set; } = 15;
+    public int MaxPasswordLength { get; set; } = 50;
 
     /// <summary>
     /// When <c>true</c>, the <c>appLoginByPassword</c> endpoint skips the
@@ -498,15 +512,19 @@ public sealed class SdkMaPassportLoginConfig
 
     /// <summary>
     /// Token type reported in the response of <c>appLoginByPassword</c>
-    /// (and <c>reactivateAccount</c>).
+    /// (and <c>reactivateAccount</c>). Stored as <c>int</c> here so the
+    /// configuration JSON stays numeric; cast to
+    /// <see cref="MaPassportTokenType"/> at the call site.
     /// </summary>
-    public int AppLoginTokenType { get; set; } = 3;
+    public int AppLoginTokenType { get; set; } = (int)MaPassportTokenType.GameToken;
 
     /// <summary>
     /// Token type reported in the response of <c>appLoginByAuthTicket</c>
-    /// and <c>verifySToken</c>.
+    /// and <c>verifySToken</c>. Stored as <c>int</c> here so the
+    /// configuration JSON stays numeric; cast to
+    /// <see cref="MaPassportTokenType"/> at the call site.
     /// </summary>
-    public int AuthTicketTokenType { get; set; } = 1;
+    public int AuthTicketTokenType { get; set; } = (int)MaPassportTokenType.Stoken;
 
     /// <summary>
     /// When <c>true</c>, the <c>getSwitchStatus</c> endpoint enables the
@@ -573,8 +591,9 @@ public sealed class SdkExperiment
 public sealed class SdkDeviceFpConfig
 {
     /// <summary>
-    /// Per-platform device extension entries. Keyed by platform id (1-13).
-    /// Missing platforms return an empty ext_list with success code.
+    /// Per-platform device extension entries. Keyed by the integer value
+    /// of <see cref="PlatformId"/> (1..13). Missing platforms return an
+    /// empty ext_list with success code.
     /// </summary>
     public Dictionary<int, SdkDeviceExt> Extensions { get; set; } = new();
 }

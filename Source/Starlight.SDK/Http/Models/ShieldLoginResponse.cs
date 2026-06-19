@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Starlight.Common;
 
 namespace Starlight.SDK.Http.Models;
 
@@ -23,8 +24,13 @@ public sealed class ShieldLoginResponse
     [JsonPropertyName("device_grant_required")]
     public bool DeviceGrantRequired { get; init; }
 
+    /// <summary>
+    /// Real-name flow marker. One of the constants on
+    /// <see cref="RealNameOperations"/>. Defaults to
+    /// <see cref="RealNameOperations.None"/>.
+    /// </summary>
     [JsonPropertyName("real_name_operation")]
-    public string RealNameOperation { get; init; } = "None";
+    public string RealNameOperation { get; init; } = RealNameOperations.None;
 }
 
 public sealed class ShieldAccountInfo
@@ -48,7 +54,7 @@ public sealed class ShieldAccountInfo
     public string Mobile { get; init; } = string.Empty;
 
     [JsonPropertyName("is_email_verify")]
-    public string IsEmailVerify { get; init; } = "0";
+    public string IsEmailVerify { get; init; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("realname")]
     public string Realname { get; init; } = string.Empty;
@@ -78,7 +84,7 @@ public sealed class ShieldAccountInfo
     public string TapName { get; init; } = string.Empty;
 
     [JsonPropertyName("country")]
-    public string Country { get; init; } = "US";
+    public string Country { get; init; } = SdkDefaults.DefaultCountryCode;
 
     [JsonPropertyName("reactivate_ticket")]
     public string ReactivateTicket { get; init; } = string.Empty;
@@ -96,7 +102,7 @@ public sealed class ShieldAccountInfo
     public string UnmaskedEmail { get; init; } = string.Empty;
 
     [JsonPropertyName("unmasked_email_type")]
-    public string UnmaskedEmailType { get; init; } = "0";
+    public string UnmaskedEmailType { get; init; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("cx_name")]
     public string CxName { get; init; } = string.Empty;

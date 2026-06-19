@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
+using Starlight.Common;
 
 namespace Starlight.SDK.Http.Models;
-
 
 /// <summary>
 /// Body of <c>POST /hk4e_global/account/ma-passport/api/appLoginByPassword</c>.
@@ -70,7 +70,7 @@ public sealed class MaPassportExtUserInfo
     public string GuardianEmail { get; set; } = string.Empty;
 
     [JsonPropertyName("birth")]
-    public string Birth { get; set; } = "0";
+    public string Birth { get; set; } = SdkDefaults.ZeroTimestamp;
 }
 
 public sealed class MaPassportTokenInfo
@@ -79,11 +79,12 @@ public sealed class MaPassportTokenInfo
     public string Token { get; set; } = string.Empty;
 
     /// <summary>
-    /// Token type. <c>1</c> = stoken (long-lived server token),
-    /// <c>3</c> = game token (short-lived session token).
+    /// Token type. Serialised as an integer on the wire — see
+    /// <see cref="Starlight.SDK.Common.MaPassportTokenType"/>.
+    /// Defaults to <see cref="Starlight.SDK.Common.MaPassportTokenType.GameToken"/>.
     /// </summary>
     [JsonPropertyName("token_type")]
-    public int TokenType { get; set; } = 3;
+    public MaPassportTokenType TokenType { get; set; } = MaPassportTokenType.GameToken;
 }
 
 public sealed class MaPassportUserInfo
@@ -92,7 +93,7 @@ public sealed class MaPassportUserInfo
     public string Aid { get; set; }
 
     [JsonPropertyName("mid")]
-    public string Mid { get; set; } = "nigs";
+    public string Mid { get; set; } = SdkDefaults.DefaultMid;
 
     [JsonPropertyName("account_name")]
     public string AccountName { get; set; } = string.Empty;
@@ -128,22 +129,31 @@ public sealed class MaPassportUserInfo
     public string RebindMobile { get; set; } = string.Empty;
 
     [JsonPropertyName("rebind_mobile_time")]
-    public string RebindMobileTime { get; set; } = "0";
+    public string RebindMobileTime { get; set; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("links")]
-    public List<object> Links { get; set; } = new();
+    public List<MaPassportAccountLink> Links { get; set; } = new();
 
     [JsonPropertyName("country")]
     public string Country { get; set; } = string.Empty;
 
     [JsonPropertyName("password_time")]
-    public string PasswordTime { get; set; } = "0";
+    public string PasswordTime { get; set; } = SdkDefaults.ZeroTimestamp;
 
     [JsonPropertyName("unmasked_email")]
     public string UnmaskedEmail { get; set; } = string.Empty;
 
     [JsonPropertyName("unmasked_email_type")]
     public int UnmaskedEmailType { get; set; }
+}
+
+public sealed class MaPassportAccountLink
+{
+    [JsonPropertyName("third_party")]
+    public string? ThirdParty { get; set; }
+
+    [JsonPropertyName("uid")]
+    public string? Uid { get; set; }
 }
 
 /// <summary>

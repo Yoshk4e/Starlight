@@ -1,5 +1,6 @@
 using Starlight.Database.Attributes;
 using Starlight.Database.ChangeTracking;
+using Starlight.SDK.Common;
 
 namespace Starlight.SDK.Database.Impl.Entities;
 
@@ -94,7 +95,7 @@ public sealed class AccountEntity : TrackableEntity
     {
         get;
         set => Set(ref field, value);
-    } = 1;
+    } = (int)Starlight.SDK.Common.AccountType.Normal;
 
     [DbColumn("session_token", MaxLength = 64)]
     public string? SessionToken

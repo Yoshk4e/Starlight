@@ -20,10 +20,8 @@ public static class WebstaticEndpoints
 {
     public static void MapWebstaticEndpoints(this IEndpointRouteBuilder routes)
     {
-
         routes.MapGet("/admin/mi18n/plat_oversea/m2020030410/m2020030410-version.json", HandleVersionFile);
         routes.MapGet("/admin/mi18n/plat_os/m09291531181441/m09291531181441-version.json", HandleVersionFile);
-
 
         routes.MapGet("/webstatic/{**path}", HandleFile);
         routes.MapGet("/sdk-public/{**path}", HandleFile);
@@ -33,13 +31,14 @@ public static class WebstaticEndpoints
 
     private static IResult HandleVersionFile(
         HttpContext httpContext,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         var path = httpContext.Request.Path.Value ?? string.Empty;
 
         if (sdkConfig.Webstatic.VersionMap.TryGetValue(path, out var version))
         {
-            return Results.Ok(new { version });
+            return Results.Ok(new VersionFileResponse { Version = version });
         }
 
         return HandleFile(httpContext, sdkConfig);
@@ -47,7 +46,8 @@ public static class WebstaticEndpoints
 
     private static IResult HandleFile(
         HttpContext httpContext,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         var logger = httpContext.RequestServices
             .GetRequiredService<ILoggerFactory>()
@@ -58,19 +58,19 @@ public static class WebstaticEndpoints
         if (string.IsNullOrWhiteSpace(resourceRoot))
         {
             logger.LogDebug("Webstatic miss (no ResourceRoot configured): {Path}", httpContext.Request.Path);
-            return Results.NotFound(new { error = "Not Found" });
+            return Results.NotFound(new WebstaticError { Error = "Not Found" });
         }
 
         if (!Directory.Exists(resourceRoot))
         {
             logger.LogWarning("Configured WebstaticConfig.ResourceRoot does not exist: {Root}", resourceRoot);
-            return Results.NotFound(new { error = "Not Found" });
+            return Results.NotFound(new WebstaticError { Error = "Not Found" });
         }
 
         var relativePath = httpContext.Request.Path.Value?.TrimStart('/') ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(relativePath))
-            return Results.NotFound(new { error = "Not Found" });
+            return Results.NotFound(new WebstaticError { Error = "Not Found" });
 
         var fullPath = Path.GetFullPath(Path.Combine(resourceRoot, relativePath));
         var rootFull = Path.GetFullPath(resourceRoot);
@@ -79,13 +79,13 @@ public static class WebstaticEndpoints
         if (!fullPath.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogWarning("Rejected path traversal attempt: {Path}", httpContext.Request.Path);
-            return Results.NotFound(new { error = "Not Found" });
+            return Results.NotFound(new WebstaticError { Error = "Not Found" });
         }
 
         if (!File.Exists(fullPath))
         {
             logger.LogDebug("Webstatic miss (file not found): {Path}", fullPath);
-            return Results.NotFound(new { error = "Not Found" });
+            return Results.NotFound(new WebstaticError { Error = "Not Found" });
         }
 
         var contentType = GetContentType(fullPath);
@@ -97,6 +97,7 @@ public static class WebstaticEndpoints
     private static string GetContentType(string path)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
+
         return ext switch {
             ".json" => MediaTypeNames.Application.Json,
             ".html" or ".htm" => MediaTypeNames.Text.Html,
@@ -117,5 +118,14 @@ public static class WebstaticEndpoints
             _ => MediaTypeNames.Application.Octet
         };
     }
-}
 
+    public sealed class VersionFileResponse
+    {
+        public int Version { get; init; }
+    }
+
+    public sealed class WebstaticError
+    {
+        public string Error { get; init; } = string.Empty;
+    }
+}

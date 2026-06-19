@@ -78,7 +78,7 @@ public sealed class AuthService(
                 record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
                 wasAutoCreated = true;
             }
-            catch (SqliteException ex) when (!ct.IsCancellationRequested && IsUniqueConstraintViolation(ex))
+            catch (SqliteException ex) when (!ct.IsCancellationRequested && SqliteErrorCodes.IsUniqueConstraintViolation(ex))
             {
                 // lost the race, someone else created the account between our read and insert, just pick it up
                 record = await accounts.GetAccountByUsernameAsync(account, ct);
@@ -98,10 +98,12 @@ public sealed class AuthService(
         record.SessionToken = GenerateToken();
         record.RegisterDevice(deviceId);
 
-        if (wasAutoCreated || string.IsNullOrEmpty(record.RealNameOperation) || record.RealNameOperation == "None")
+        if (wasAutoCreated
+            || string.IsNullOrEmpty(record.RealNameOperation)
+            || record.RealNameOperation == RealNameOperations.None)
         {
             record.RequireRealPerson = true;
-            record.RealNameOperation = "bindRealname";
+            record.RealNameOperation = RealNameOperations.BindRealname;
         }
 
         await accounts.UpdateSessionAsync(record, ct);
@@ -139,18 +141,5 @@ public sealed class AuthService(
             buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
         }
         return new string(buffer);
-    }
-
-    // catches the read-then-create race in LoginAsync: 19 = SQLITE_CONSTRAINT,
-    // 2067/1555 = unique / primary-key violation
-    private static bool IsUniqueConstraintViolation(SqliteException ex)
-    {
-        const int SqliteConstraint = 19;
-        const int SqliteConstraintUnique = 2067;
-        const int SqliteConstraintPrimaryKey = 1555;
-
-        return ex.SqliteErrorCode == SqliteConstraint
-               && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
-                   || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
     }
 }

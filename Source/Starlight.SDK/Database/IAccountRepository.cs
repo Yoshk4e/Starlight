@@ -42,4 +42,3 @@ public interface IAccountRepository
     /// </summary>
     Task UpdateSessionAsync(Account account, CancellationToken ct);
 }
-

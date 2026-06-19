@@ -51,12 +51,12 @@ public static class PassportEndpoints
         }
     }
 
-
     private static async Task<IResult> HandleGetConfig(
         HttpContext httpContext,
         [FromServices] SdkConfig sdkConfig,
         [FromServices] IGeoIpLookup geoIp,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var remoteIp = GetClientIp(httpContext);
         var countryCode = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
@@ -93,7 +93,8 @@ public static class PassportEndpoints
         [FromServices] IGeoIpLookup geoIp,
         [FromServices] IAccountRepository accounts,
         [FromServices] ILoggerFactory loggerFactory,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var logger = loggerFactory.CreateLogger("Starlight.SDK.Passport");
 
@@ -110,10 +111,10 @@ public static class PassportEndpoints
         {
             account = body.Account!;
             password = body.Password!;
-        }
-        else
+        } else
         {
             var passwordCrypto = httpContext.RequestServices.GetService<RsaCrypto>();
+
             if (passwordCrypto is null)
             {
                 logger.LogError("appLoginByPassword: no RSA key configured but SkipRsaDecryption=false");
@@ -131,6 +132,7 @@ public static class PassportEndpoints
             return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountFormatError));
 
         var login = sdkConfig.MaPassport.Login;
+
         if (password.Length < login.MinPasswordLength || password.Length > login.MaxPasswordLength)
             return Results.Ok(ApiResponse.From(Retcode.MaPassportPasswordFormatError));
 
@@ -149,7 +151,7 @@ public static class PassportEndpoints
                 acc = await accounts.CreateAccountFromEmailAsync(account, Argon2Crypto.Hash(password), ct);
                 wasAutoCreated = true;
             }
-            catch (SqliteException ex) when (!ct.IsCancellationRequested && IsUniqueConstraintViolation(ex))
+            catch (SqliteException ex) when (!ct.IsCancellationRequested && SqliteErrorCodes.IsUniqueConstraintViolation(ex))
             {
                 acc = await accounts.GetAccountByEmailAsync(account, ct)
                       ?? await accounts.GetAccountByUsernameAsync(account, ct);
@@ -160,16 +162,17 @@ public static class PassportEndpoints
 
             acc.PasswordTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             logger.LogInformation("Auto-created account id {Id} on ma-passport login (email={Email})", acc.Id, account);
-        }
-        else if (!Argon2Crypto.Verify(password, acc.PasswordHash))
+        } else if (!Argon2Crypto.Verify(password, acc.PasswordHash))
         {
             return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountMismatch));
         }
 
-        if (wasAutoCreated || string.IsNullOrEmpty(acc.RealNameOperation) || acc.RealNameOperation == "None")
+        if (wasAutoCreated
+            || string.IsNullOrEmpty(acc.RealNameOperation)
+            || acc.RealNameOperation == RealNameOperations.None)
         {
             acc.RequireRealPerson = true;
-            acc.RealNameOperation = "bindRealname";
+            acc.RealNameOperation = RealNameOperations.BindRealname;
         }
 
         if (!login.SkipDeviceIdCheck
@@ -190,11 +193,11 @@ public static class PassportEndpoints
 
         return Results.Ok(ApiResponse.Ok(BuildLoginData(
             acc,
-            tokenType: login.AppLoginTokenType,
-            token: acc.SessionToken,
-            reactivateActionTicket: string.Empty,
-            bindEmailActionTicket: string.Empty,
-            country: acc.Country)));
+            (MaPassportTokenType)login.AppLoginTokenType,
+            acc.SessionToken,
+            string.Empty,
+            string.Empty,
+            acc.Country)));
     }
 
     /// <summary>
@@ -211,7 +214,8 @@ public static class PassportEndpoints
     /// storage is added.
     /// </remarks>
     private static Task<IResult> HandleAppLoginByAuthTicketAsync(
-        [FromBody] MaPassportAppLoginByAuthTicketRequest? body)
+        [FromBody] MaPassportAppLoginByAuthTicketRequest? body
+    )
     {
         if (body is null || string.IsNullOrEmpty(body.Ticket))
             return Task.FromResult(Results.Ok(ApiResponse.From(Retcode.MaPassportParameterError)));
@@ -229,7 +233,6 @@ public static class PassportEndpoints
         return Task.FromResult(Results.Ok(ApiResponse.From(Retcode.MaPassportIllegalParameter)));
     }
 
-
     /// <summary>
     /// Handles <c>POST /hk4e_global/account/ma-passport/api/reactivateAccount</c>.
     /// Consumes a one-time <c>reactivation</c> action ticket and clears
@@ -241,7 +244,8 @@ public static class PassportEndpoints
     /// so this can be flipped on once a ticket repository exists.
     /// </remarks>
     private static Task<IResult> HandleReactivateAccountAsync(
-        [FromBody] MaPassportReactivateAccountRequest? body)
+        [FromBody] MaPassportReactivateAccountRequest? body
+    )
     {
         if (body is null || string.IsNullOrEmpty(body.ActionTicket))
             return Task.FromResult(Results.Ok(ApiResponse.From(Retcode.MaPassportParameterError)));
@@ -265,7 +269,8 @@ public static class PassportEndpoints
     private static IResult HandleGetSwitchStatus(
         [FromQuery] string? app_id,
         [FromQuery] int? platform,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         if (string.IsNullOrEmpty(app_id) || platform is null)
             return Results.Ok(ApiResponse.From(Retcode.MaPassportParameterError));
@@ -274,46 +279,50 @@ public static class PassportEndpoints
         var switchMap = new Dictionary<string, MaPassportSwitchEntry>();
 
         // ui_v2 is only enabled on Android.
-        if (platform == 2 && s.EnableAndroidUiV2)
+        if (platform == (int)PlatformId.Android && s.EnableAndroidUiV2)
         {
-            switchMap["ui_v2"] = new MaPassportSwitchEntry { Enabled = true };
+            switchMap[MaPassportSwitchKey.UiV2] = NewEntry(true);
         }
 
         // Third-party login options.
         if (s.EnableThirdPartyLogins)
         {
-            switchMap["apple_login"] = new MaPassportSwitchEntry { Enabled = true };
-            switchMap["google_login"] = new MaPassportSwitchEntry { Enabled = true };
-            switchMap["twitter_login"] = new MaPassportSwitchEntry { Enabled = true };
-            switchMap["facebook_login"] = new MaPassportSwitchEntry { Enabled = true };
+            switchMap[MaPassportSwitchKey.AppleLogin] = NewEntry(true);
+            switchMap[MaPassportSwitchKey.GoogleLogin] = NewEntry(true);
+            switchMap[MaPassportSwitchKey.TwitterLogin] = NewEntry(true);
+            switchMap[MaPassportSwitchKey.FacebookLogin] = NewEntry(true);
         }
 
         // Login/register tabs.
         if (s.EnableLoginRegisterTabs)
         {
-            switchMap["pwd_login_tab"] = new MaPassportSwitchEntry { Enabled = true };
-            switchMap["account_register_tab"] = new MaPassportSwitchEntry { Enabled = true };
+            switchMap[MaPassportSwitchKey.PasswordLoginTab] = NewEntry(true);
+            switchMap[MaPassportSwitchKey.AccountRegisterTab] = NewEntry(true);
         }
 
         // Always-on UI affordances.
-        switchMap["password_reset_entry"] = new MaPassportSwitchEntry { Enabled = true };
-        switchMap["common_question_entry"] = new MaPassportSwitchEntry { Enabled = true };
-        switchMap["bind_user_thirdparty_email"] = new MaPassportSwitchEntry { Enabled = true };
-        switchMap["third_party_bind_email"] = new MaPassportSwitchEntry { Enabled = true };
-        switchMap["user_name_bind_email"] = new MaPassportSwitchEntry { Enabled = true };
-        switchMap["marketing_authorization"] = new MaPassportSwitchEntry { Enabled = true };
+        switchMap[MaPassportSwitchKey.PasswordResetEntry] = NewEntry(true);
+        switchMap[MaPassportSwitchKey.CommonQuestionEntry] = NewEntry(true);
+        switchMap[MaPassportSwitchKey.BindUserThirdPartyEmail] = NewEntry(true);
+        switchMap[MaPassportSwitchKey.ThirdPartyBindEmail] = NewEntry(true);
+        switchMap[MaPassportSwitchKey.UserNameBindEmail] = NewEntry(true);
+        switchMap[MaPassportSwitchKey.MarketingAuthorization] = NewEntry(true);
 
         // Always-off / Vietnam-only switches.
-        switchMap["vn_real_name"] = new MaPassportSwitchEntry { Enabled = s.EnableVietnamRealName };
-        switchMap["vn_real_name_v2"] = new MaPassportSwitchEntry { Enabled = s.EnableVietnamRealName };
-        switchMap["firebase_return_unmasked_email"] = new MaPassportSwitchEntry { Enabled = false };
-        switchMap["bind_thirdparty"] = new MaPassportSwitchEntry { Enabled = false };
+        switchMap[MaPassportSwitchKey.VietnamRealName] = NewEntry(s.EnableVietnamRealName);
+        switchMap[MaPassportSwitchKey.VietnamRealNameV2] = NewEntry(s.EnableVietnamRealName);
+        switchMap[MaPassportSwitchKey.FirebaseReturnUnmaskedEmail] = NewEntry(false);
+        switchMap[MaPassportSwitchKey.BindThirdParty] = NewEntry(false);
 
         return Results.Ok(ApiResponse.Ok(new MaPassportSwitchStatusData {
             SwitchStatusMap = switchMap
         }));
-    }
 
+        static MaPassportSwitchEntry NewEntry(bool enabled)
+        {
+            return new MaPassportSwitchEntry { Enabled = enabled };
+        }
+    }
 
     /// <summary>
     /// Builds the common login response payload shared by
@@ -322,46 +331,44 @@ public static class PassportEndpoints
     /// </summary>
     private static MaPassportLoginData BuildLoginData(
         Account acc,
-        int tokenType,
+        MaPassportTokenType tokenType,
         string token,
         string reactivateActionTicket,
         string bindEmailActionTicket,
-        string country)
-    {
-        return new MaPassportLoginData {
-            ReactivateActionTicket = reactivateActionTicket,
-            BindEmailActionTicket = bindEmailActionTicket,
-            ExtUserInfo = new MaPassportExtUserInfo {
-                GuardianEmail = string.Empty,
-                Birth = "0"
-            },
-            Token = new MaPassportTokenInfo {
-                Token = token,
-                TokenType = tokenType
-            },
-            UserInfo = new MaPassportUserInfo {
-                Aid = acc.Id.ToString(),
-                Mid = acc.Id.ToString(),
-                AccountName = acc.Username,
-                Email = MaskString(acc.Email),
-                IsEmailVerify = 0,
-                AreaCode = string.Empty,
-                Mobile = string.Empty,
-                SafeAreaCode = string.Empty,
-                SafeMobile = string.Empty,
-                Realname = string.Empty,
-                IdentityCode = string.Empty,
-                RebindAreaCode = string.Empty,
-                RebindMobile = string.Empty,
-                RebindMobileTime = "0",
-                Links = [],
-                Country = country,
-                PasswordTime = acc.PasswordTime > 0 ? acc.PasswordTime.ToString() : "0",
-                UnmaskedEmail = string.Empty,
-                UnmaskedEmailType = 0
-            }
-        };
-    }
+        string country
+    ) => new() {
+        ReactivateActionTicket = reactivateActionTicket,
+        BindEmailActionTicket = bindEmailActionTicket,
+        ExtUserInfo = new MaPassportExtUserInfo {
+            GuardianEmail = string.Empty,
+            Birth = SdkDefaults.ZeroTimestamp
+        },
+        Token = new MaPassportTokenInfo {
+            Token = token,
+            TokenType = tokenType
+        },
+        UserInfo = new MaPassportUserInfo {
+            Aid = acc.Id.ToString(),
+            Mid = acc.Id.ToString(),
+            AccountName = acc.Username,
+            Email = MaskString(acc.Email),
+            IsEmailVerify = 0,
+            AreaCode = string.Empty,
+            Mobile = string.Empty,
+            SafeAreaCode = string.Empty,
+            SafeMobile = string.Empty,
+            Realname = string.Empty,
+            IdentityCode = string.Empty,
+            RebindAreaCode = string.Empty,
+            RebindMobile = string.Empty,
+            RebindMobileTime = SdkDefaults.ZeroTimestamp,
+            Links = [],
+            Country = country,
+            PasswordTime = acc.PasswordTime > 0 ? acc.PasswordTime.ToString() : SdkDefaults.ZeroTimestamp,
+            UnmaskedEmail = string.Empty,
+            UnmaskedEmailType = 0
+        }
+    };
 
     /// <summary>
     /// Generates a random alphanumeric token of the given length. Mirrors
@@ -379,39 +386,29 @@ public static class PassportEndpoints
         return new string(buffer);
     }
 
-
     private static string MaskString(string? text)
     {
         if (string.IsNullOrEmpty(text))
             return string.Empty;
 
         if (text.Length < 4)
-            return new string('*', text.Length);
+            return new string(c: '*', text.Length);
 
         var start = text.Length >= 10 ? 2 : 1;
         var end = text.Length > 5 ? 2 : 1;
-        var masked = new string('*', text.Length - start - end);
-        return string.Concat(text.AsSpan(0, start), masked, text.AsSpan(text.Length - end));
-    }
-
-    private static bool IsUniqueConstraintViolation(SqliteException ex)
-    {
-        const int SqliteConstraint = 19;
-        const int SqliteConstraintUnique = 2067;
-        const int SqliteConstraintPrimaryKey = 1555;
-
-        return ex.SqliteErrorCode == SqliteConstraint
-               && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
-                   || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
+        var masked = new string(c: '*', text.Length - start - end);
+        return string.Concat(text.AsSpan(start: 0, start), masked, text.AsSpan(text.Length - end));
     }
 
     private static string? GetClientIp(HttpContext httpContext)
     {
         var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+
         if (!string.IsNullOrWhiteSpace(forwardedFor))
             return forwardedFor.Split(',')[0].Trim();
 
         var realIp = httpContext.Request.Headers["X-Real-IP"].ToString();
+
         if (!string.IsNullOrWhiteSpace(realIp))
             return realIp.Trim();
 

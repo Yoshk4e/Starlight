@@ -90,9 +90,9 @@ public static class ServiceExtensions
 #if DEBUG
     public static IApplicationBuilder UseSdkRequestLogging(this IApplicationBuilder app)
     {
-        return app.Use(async (context, next) =>
-        {
+        return app.Use(async (context, next) => {
             var stopwatch = Stopwatch.StartNew();
+
             try
             {
                 await next();
@@ -100,6 +100,7 @@ public static class ServiceExtensions
             finally
             {
                 stopwatch.Stop();
+
                 Log.Information("HTTP {Method} {Path}{QueryString} responded {StatusCode} in {Elapsed}ms",
                     context.Request.Method,
                     context.Request.Path,

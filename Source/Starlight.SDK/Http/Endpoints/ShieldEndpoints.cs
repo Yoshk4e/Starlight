@@ -82,11 +82,13 @@ public static class ShieldEndpoints
             await accounts.UpdateSessionAsync(acc, ct);
         }
 
-        // config default can also be blank, so fall back to "None" explicitly
-        // instead of letting a null/empty value sneak into the response.
-        var realNameOperation = string.IsNullOrWhiteSpace(acc.RealNameOperation) ?
-            string.IsNullOrWhiteSpace(sdkConfig.DefaultRealNameOperation) ? "None" : sdkConfig.DefaultRealNameOperation :
-            acc.RealNameOperation;
+        // config default can also be blank, so fall back to the "None"
+        // constant explicitly instead of letting a null/empty value sneak
+        // into the response.
+        var realNameOperation =
+            !string.IsNullOrWhiteSpace(acc.RealNameOperation) ? acc.RealNameOperation :
+            !string.IsNullOrWhiteSpace(sdkConfig.DefaultRealNameOperation) ? sdkConfig.DefaultRealNameOperation :
+            RealNameOperations.None;
 
         var payload = new ShieldLoginResponse {
             Account = new ShieldAccountInfo {
@@ -131,26 +133,32 @@ public static class ShieldEndpoints
     private static IResult HandleLoadConfig(
         [FromQuery] int? client,
         [FromQuery] string? game_key,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         if (string.IsNullOrEmpty(game_key))
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
 
-        if (client is null || client < 1 || client > 13 || !SdkUtils.IsValidGameBiz(game_key))
+        if (client is null
+            || !Enum.IsDefined(typeof(PlatformId), client.Value)
+            || !SdkUtils.IsValidGameBiz(game_key))
+        {
             return Results.Ok(ApiResponse.From(Retcode.MissingConfiguration));
+        }
 
+        var platform = (PlatformId)client.Value;
         var s = sdkConfig.Shield;
-        var isPhone = client is 1 or 2 or 8;
+        var isPhone = platform.IsPhone();
 
         var data = new ShieldLoadConfigData {
-            Id = GetConfigId(client.Value),
+            Id = PlatformConfigMap.GetConfigId(platform),
             GameKey = game_key!,
             AppId = (int)Common.ApplicationId.Release,
-            Client = GetPlatformNameById(client.Value),
-            Identity = "I_IDENTITY",
+            Client = PlatformConfigMap.GetPlatformName(platform),
+            Identity = SdkDefaults.ShieldIdentity,
             Guest = s.EnableGuestLogin,
-            IgnoreVersions = "2.6.0",
-            Scene = client == 3 ? "S_ACCOUNT" : "S_NORMAL",
+            IgnoreVersions = SdkDefaults.ShieldIgnoreVersions,
+            Scene = platform == PlatformId.Pc ? SdkDefaults.ShieldSceneAccount : SdkDefaults.ShieldSceneNormal,
             Name = s.AppName,
             DisableRegist = s.DisableRegistrations,
             EnableEmailCaptcha = s.UseEmailCaptcha,
@@ -178,39 +186,4 @@ public static class ShieldEndpoints
 
         return Results.Ok(ApiResponse.Ok(data));
     }
-
-    /// <summary>
-    /// Maps a platform id to the configuration id.
-    /// </summary>
-    private static int GetConfigId(int platformId) => platformId switch {
-        1 => 4,
-        2 => 5,
-        3 => 6,
-        6 => 30,
-        8 => 27,
-        9 => 53,
-        10 => 26,
-        11 => 28,
-        13 => 44,
-        _ => -1
-    };
-
-    /// <summary>
-    /// Maps a platform id to its human-readable name as expected by the
-    /// client SDK. Unknown ids return an empty string.
-    /// </summary>
-    private static string GetPlatformNameById(int id) => id switch {
-        1 => "IOS",
-        2 => "Android",
-        3 => "PC",
-        4 or 5 => "Browser",
-        6 => "PS",
-        8 => "CloudAndroid",
-        9 => "CloudPC",
-        10 => "CloudIOS",
-        11 => "PS5",
-        12 => "MacOS",
-        13 => "CloudMacOS",
-        _ => string.Empty
-    };
 }

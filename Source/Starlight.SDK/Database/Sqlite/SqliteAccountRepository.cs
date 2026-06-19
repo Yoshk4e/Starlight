@@ -1,4 +1,6 @@
+using Starlight.Common;
 using Starlight.Database;
+using Starlight.SDK.Common;
 using Starlight.SDK.Database.Impl.Entities;
 using Starlight.SDK.Database.Models;
 
@@ -6,6 +8,13 @@ namespace Starlight.SDK.Database.Impl;
 
 public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepository
 {
+    /// <summary>
+    /// Delimiter used when packing/unpacking
+    /// <see cref="AccountEntity.KnownDeviceIds"/> to and from its
+    /// pipe-separated string representation.
+    /// </summary>
+    private const string DeviceIdDelimiter = "|";
+
     public async Task<Account?> GetAccountById(uint id)
     {
         var entity = await db.FindAsync<AccountEntity>(id);
@@ -50,7 +59,7 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
     public async Task<Account> CreateAccountFromEmailAsync(string email, string passwordHash, CancellationToken ct)
     {
         var lower = email.ToLowerInvariant();
-        var username = lower.Length > 64 ? lower[..64] : lower;
+        var username = lower.Length > MaxEmailUsernameLength ? lower[..MaxEmailUsernameLength] : lower;
 
         var entity = new AccountEntity {
             Username = username,
@@ -80,7 +89,7 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         entity.RequireSafeMobile = account.RequireSafeMobile;
         entity.RequireActivation = account.RequireActivation;
         entity.RequireDeviceGrant = account.RequireDeviceGrant;
-        entity.AccountType = account.AccountType;
+        entity.AccountType = (int)account.AccountType;
         entity.PasswordTime = account.PasswordTime;
 
         entity.UpdatedAt = DateTimeOffset.UtcNow;
@@ -88,7 +97,12 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         await db.SaveChangesAsync(ct);
     }
 
-    private const string DeviceIdDelimiter = "|";
+    /// <summary>
+    /// Maximum length of the username derived from the email during
+    /// <see cref="CreateAccountFromEmailAsync"/>. Matches the DB column
+    /// limit on <see cref="AccountEntity.Username"/>.
+    /// </summary>
+    private const int MaxEmailUsernameLength = 64;
 
     private static Account Map(AccountEntity entity) => new() {
         Id = entity.Id,
@@ -97,12 +111,12 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         PasswordHash = entity.Password,
         PasswordTime = entity.PasswordTime ?? 0,
         Country = entity.Country ?? string.Empty,
-        RealNameOperation = entity.RealNameOperation ?? "None",
+        RealNameOperation = entity.RealNameOperation ?? RealNameOperations.None,
         RequireRealPerson = entity.RequireRealPerson,
         RequireSafeMobile = entity.RequireSafeMobile,
         RequireActivation = entity.RequireActivation,
         RequireDeviceGrant = entity.RequireDeviceGrant,
-        AccountType = entity.AccountType,
+        AccountType = (AccountType)entity.AccountType,
         SessionToken = entity.SessionToken ?? string.Empty,
         ComboToken = entity.ComboToken ?? string.Empty,
         KnownDeviceIds = string.IsNullOrEmpty(entity.KnownDeviceIds) ?

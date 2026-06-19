@@ -31,118 +31,127 @@ public static class ComboBoxEndpoints
     private static IResult HandleSdkCombo(
         [FromQuery] string? biz_key,
         [FromQuery] int? client_type,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         if (string.IsNullOrEmpty(biz_key) || client_type is null
-            || !SdkUtils.IsValidGameBiz(biz_key))
+                                          || !SdkUtils.IsValidGameBiz(biz_key))
         {
             return Results.Ok(ApiResponse.From(Retcode.ComboInvalidKey));
         }
 
-        // client_type values 1..13 are accepted, except 7 (MacOS) and 12
-        // (also MacOS variant).
-        if (client_type is < 1 or > 13 or 7 or 12)
+        // Reject anything that isn't a known platform id.
+        if (!Enum.IsDefined(typeof(PlatformId), client_type.Value))
+            return Results.Ok(ApiResponse.From(Retcode.ComboPlatformNoConfig));
+
+        var platform = (PlatformId)client_type.Value;
+
+        if (platform.IsUnsupportedByComboBox())
             return Results.Ok(ApiResponse.From(Retcode.ComboPlatformNoConfig));
 
         var shield = sdkConfig.Shield;
         var box = sdkConfig.ComboBox;
         var vals = new Dictionary<string, string>();
 
-        // Per-client_type additions. We intentionally replicate the
-        // fall-through behaviour of the upstream switch — case 2/8 falls
-        // through into case 3/9, which then falls through into default.
-        // C# disallows implicit fall-through, so we use explicit
-        // `goto case` jumps to mirror the Java reference's behaviour.
-        switch (client_type)
+        switch (platform)
         {
-            case 4:
-            case 5:
-                vals["modify_real_name_other_verify"] = Bool(shield.ModifyRealNameOtherVerify);
-                vals["login_flow_notification"] = JsonBool("enable", shield.EnableLoginFlowNotification);
+            case PlatformId.BrowserA:
+            case PlatformId.BrowserB:
+                vals[ComboBoxConfigKey.ModifyRealNameOtherVerify] = Bool(shield.ModifyRealNameOtherVerify);
+                vals[ComboBoxConfigKey.LoginFlowNotification] = JsonBool("enable", shield.EnableLoginFlowNotification);
                 break;
-            case 11:
-                vals["login_flow_notification"] = JsonBool("enable", shield.EnableLoginFlowNotification);
+            case PlatformId.PlayStation5:
+                vals[ComboBoxConfigKey.LoginFlowNotification] = JsonBool("enable", shield.EnableLoginFlowNotification);
                 break;
-            case 10:
-            case 13:
-                vals["enable_telemetry_data_upload"] = Bool(box.EnableConsoleTelemetryUpload);
-                vals["enable_telemetry_h5log"] = Bool(box.EnableTelemetryH5Log);
-                vals["network_report_config"] = "{\n\t\"enable\": 1,\n\t\"status_codes\": [200]\n}";
+            case PlatformId.CloudIos:
+            case PlatformId.CloudMacOs:
+                vals[ComboBoxConfigKey.EnableTelemetryDataUpload] = Bool(box.EnableConsoleTelemetryUpload);
+                vals[ComboBoxConfigKey.EnableTelemetryH5Log] = Bool(box.EnableTelemetryH5Log);
+                vals[ComboBoxConfigKey.NetworkReportConfig] = "{\n\t\"enable\": 1,\n\t\"status_codes\": [200]\n}";
                 break;
-            case 2:
-            case 8:
-                vals["alipay_recommend"] = Bool(box.EnableAliPayRecommend);
-                vals["watermark_enable_web_notice"] = Bool(box.WatermarkEnableWebNotice);
-                vals["enable_oaid"] = Bool(box.EnableOaid);
-                vals["oaid_multi_process"] = Bool(box.EnableOaidMultiProcess);
-                vals["oaid_call_hms"] = Bool(box.EnableOaidCallHms);
-                vals["pay_platform_block_h5_cashier"] = Bool(box.EnablePayPlatformBlockH5Cashier);
-                vals["pay_platform_h5_loading_limit"] = box.PayPlatformH5LoadingLimit.ToString();
-                vals["isGooglePayV2"] = Bool(box.EnableGoogleV2);
-                vals["report_black_list"] = "{\"key\":[\"download_update_progress\"]}";
-                vals["bili_pay_cancel_strings"] = "[\"用户取消交易\"]\n";
-                vals["enable_google_cancel_callback"] = Bool(box.EnableGoogleCancelCallback);
-                goto case 3;
-            case 3:
-            case 9:
-                vals["kcp_enable"] = Bool(box.EnableNewKcp);
-                vals["kibana_pc_config"] = JsonSerializer.Serialize(new {
+            case PlatformId.Android:
+            case PlatformId.CloudAndroid:
+                vals[ComboBoxConfigKey.AlipayRecommend] = Bool(box.EnableAliPayRecommend);
+                vals[ComboBoxConfigKey.WatermarkEnableWebNotice] = Bool(box.WatermarkEnableWebNotice);
+                vals[ComboBoxConfigKey.EnableOaid] = Bool(box.EnableOaid);
+                vals[ComboBoxConfigKey.OaidMultiProcess] = Bool(box.EnableOaidMultiProcess);
+                vals[ComboBoxConfigKey.OaidCallHms] = Bool(box.EnableOaidCallHms);
+                vals[ComboBoxConfigKey.PayPlatformBlockH5Cashier] = Bool(box.EnablePayPlatformBlockH5Cashier);
+                vals[ComboBoxConfigKey.PayPlatformH5LoadingLimit] = box.PayPlatformH5LoadingLimit.ToString();
+                vals[ComboBoxConfigKey.IsGooglePayV2] = Bool(box.EnableGoogleV2);
+                vals[ComboBoxConfigKey.ReportBlackList] = "{\"key\":[\"download_update_progress\"]}";
+                vals[ComboBoxConfigKey.BiliPayCancelStrings] = "[\"用户取消交易\"]\n";
+                vals[ComboBoxConfigKey.EnableGoogleCancelCallback] = Bool(box.EnableGoogleCancelCallback);
+                goto case PlatformId.Pc;
+            case PlatformId.Pc:
+            case PlatformId.CloudPc:
+                vals[ComboBoxConfigKey.KcpEnable] = Bool(box.EnableNewKcp);
+
+                vals[ComboBoxConfigKey.KibanaPcConfig] = JsonSerializer.Serialize(new {
                     enable = box.EnableKibana ? 1 : 0,
                     level = Capitalize(shield.ApiLogLevel),
                     modules = box.KibanaModules
                 });
-                vals["webview_rendermethod_config"] = JsonSerializer.Serialize(new {
+
+                vals[ComboBoxConfigKey.WebViewRenderMethodConfig] = JsonSerializer.Serialize(new {
                     useLegacy = box.UseLegacyWebViewRenderMethod
                 });
-                vals["enable_web_dpi"] = Bool(box.EnableWebDpi);
-                vals["account_list_page_enable"] = Bool(box.EnableAccountListPage);
-                vals["new_forgotpwd_page_enable"] = Bool(box.EnableNewForgotPwdPage);
-                vals["webview_apm_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.EnableWebDpi] = Bool(box.EnableWebDpi);
+                vals[ComboBoxConfigKey.AccountListPageEnable] = Bool(box.EnableAccountListPage);
+                vals[ComboBoxConfigKey.NewForgotPwdPageEnable] = Bool(box.EnableNewForgotPwdPage);
+
+                vals[ComboBoxConfigKey.WebViewApmConfig] = JsonSerializer.Serialize(new {
                     crash_capture_enable = box.EnableCrashCapture
                 });
-                vals["pay_payco_centered_host"] = box.PayCoCenteredHost;
-                vals["payment_cn_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.PayPaycoCenteredHost] = box.PayCoCenteredHost;
+
+                vals[ComboBoxConfigKey.PaymentCnConfig] = JsonSerializer.Serialize(new {
                     h5_cashier_enable = box.EnableH5Cashier ? 1 : 0,
                     h5_cashier_timeout = box.H5CashierTimeout
                 });
                 goto default;
             default:
-                vals["enable_telemetry_data_upload"] = Bool(box.EnableTelemetryDataUpload);
-                vals["telemetry_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.EnableTelemetryDataUpload] = Bool(box.EnableTelemetryDataUpload);
+
+                vals[ComboBoxConfigKey.TelemetryConfig] = JsonSerializer.Serialize(new {
                     dataupload_enable = box.EnableTelemetryDataUpload
                 });
-                vals["enable_apm_sdk"] = Bool(box.EnableApmSdk);
-                vals["enable_telemetry_h5log"] = Bool(box.EnableTelemetryH5Log);
-                vals["email_bind_remind"] = Bool(box.EnableEmailBindRemind);
-                vals["email_bind_remind_interval"] = box.EmailBindRemindInterval.ToString();
-                vals["enable_attribution"] = Bool(box.EnableAttribution);
-                vals["disable_email_bind_skip"] = Bool(box.DisableEmailBindSkip);
-                vals["new_register_page_enable"] = Bool(box.EnableNewRegisterPage);
-                vals["h5log_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.EnableApmSdk] = Bool(box.EnableApmSdk);
+                vals[ComboBoxConfigKey.EnableTelemetryH5Log] = Bool(box.EnableTelemetryH5Log);
+                vals[ComboBoxConfigKey.EmailBindRemind] = Bool(box.EnableEmailBindRemind);
+                vals[ComboBoxConfigKey.EmailBindRemindInterval] = box.EmailBindRemindInterval.ToString();
+                vals[ComboBoxConfigKey.EnableAttribution] = Bool(box.EnableAttribution);
+                vals[ComboBoxConfigKey.DisableEmailBindSkip] = Bool(box.DisableEmailBindSkip);
+                vals[ComboBoxConfigKey.NewRegisterPageEnable] = Bool(box.EnableNewRegisterPage);
+
+                vals[ComboBoxConfigKey.H5LogConfig] = JsonSerializer.Serialize(new {
                     enable = box.EnableH5Log,
                     level = Capitalize(shield.ApiLogLevel)
                 });
-                vals["appsflyer_config"] = JsonSerializer.Serialize(new {
+
+                vals[ComboBoxConfigKey.AppsFlyerConfig] = JsonSerializer.Serialize(new {
                     enable = box.EnableAppsFlyer
                 });
-                vals["enable_register_autologin"] = Bool(box.EnableRegisterAutoLogin);
-                vals["enable_user_center_v2"] = Bool(box.EnableUserCenterV2);
-                vals["enable_twitter_v2"] = Bool(box.EnableTwitterV2);
-                vals["modify_real_name_other_verify"] = Bool(shield.ModifyRealNameOtherVerify);
-                vals["disable_try_verify"] = Bool(shield.DisableTryVerify);
-                vals["login_flow_notification"] = JsonBool("enable", shield.EnableLoginFlowNotification);
-                vals["network_report_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.EnableRegisterAutoLogin] = Bool(box.EnableRegisterAutoLogin);
+                vals[ComboBoxConfigKey.EnableUserCenterV2] = Bool(box.EnableUserCenterV2);
+                vals[ComboBoxConfigKey.EnableTwitterV2] = Bool(box.EnableTwitterV2);
+                vals[ComboBoxConfigKey.ModifyRealNameOtherVerify] = Bool(shield.ModifyRealNameOtherVerify);
+                vals[ComboBoxConfigKey.DisableTryVerify] = Bool(shield.DisableTryVerify);
+                vals[ComboBoxConfigKey.LoginFlowNotification] = JsonBool("enable", shield.EnableLoginFlowNotification);
+
+                vals[ComboBoxConfigKey.NetworkReportConfig] = JsonSerializer.Serialize(new {
                     enable = box.EnableNetworkReport ? 1 : 0,
                     status_codes = box.NetworkStatusCodes,
                     url_paths = box.NetworkUrlPaths
                 });
-                vals["enable_bind_google_sdk_order"] = Bool(box.EnableBindGoogleSdkOrder);
-                vals["email_register_hide"] = Bool(shield.EnableRegisterHide);
-                vals["httpdns_enable"] = Bool(box.EnableHttpDns);
-                vals["httpdns_cache_expire_time"] = box.HttpDnsCacheExpireTime.ToString();
-                vals["http_keep_alive_time"] = box.HttpKeepAliveTime.ToString();
-                vals["list_price_tierv2_enable"] = Bool(box.EnableListPriceTierV2);
-                vals["h5log_filter_config"] = JsonSerializer.Serialize(new {
+                vals[ComboBoxConfigKey.EnableBindGoogleSdkOrder] = Bool(box.EnableBindGoogleSdkOrder);
+                vals[ComboBoxConfigKey.EmailRegisterHide] = Bool(shield.EnableRegisterHide);
+                vals[ComboBoxConfigKey.HttpDnsEnable] = Bool(box.EnableHttpDns);
+                vals[ComboBoxConfigKey.HttpDnsCacheExpireTime] = box.HttpDnsCacheExpireTime.ToString();
+                vals[ComboBoxConfigKey.HttpKeepAliveTime] = box.HttpKeepAliveTime.ToString();
+                vals[ComboBoxConfigKey.ListPriceTierV2Enable] = Bool(box.EnableListPriceTierV2);
+
+                vals[ComboBoxConfigKey.H5LogFilterConfig] = JsonSerializer.Serialize(new {
                     function = new { event_name = box.NetworkConfigs }
                 });
                 break;
@@ -154,16 +163,24 @@ public static class ComboBoxEndpoints
     private static IResult HandleSwPrecache(
         [FromQuery] string? biz,
         [FromQuery] int? client,
-        [FromServices] SdkConfig sdkConfig)
+        [FromServices] SdkConfig sdkConfig
+    )
     {
         if (string.IsNullOrEmpty(biz) || client is null
-            || !SdkUtils.IsValidGameBiz(biz))
+                                      || !SdkUtils.IsValidGameBiz(biz))
         {
             return Results.Ok(ApiResponse.From(Retcode.ComboInvalidKey));
         }
 
-        if (client is < 1 or > 3)
+        // Precache only exists for the three PC-style platforms (PC,
+        // Cloud PC, Cloud Android). Any other id is rejected.
+        if (!Enum.IsDefined(typeof(PlatformId), client.Value)
+            || client.Value is not ((int)PlatformId.Pc
+                or (int)PlatformId.CloudPc
+                or (int)PlatformId.CloudAndroid))
+        {
             return Results.Ok(ApiResponse.From(Retcode.ComboPlatformNoConfig));
+        }
 
         return Results.Ok(ApiResponse.Ok(new ComboBoxPrecacheData {
             Data = new ComboBoxPrecacheInner {
@@ -179,6 +196,5 @@ public static class ComboBoxEndpoints
         => JsonSerializer.Serialize(new Dictionary<string, object> { [key] = value });
 
     private static string Capitalize(string value)
-        => string.IsNullOrEmpty(value) ? value
-            : char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant();
+        => string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant();
 }

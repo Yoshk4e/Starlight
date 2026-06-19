@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 using Starlight.Database.DependencyInjection;
 using Starlight.Crypto;
@@ -63,6 +64,19 @@ public static class ServiceExtensions
             }
         });
 
+        if (config.IpApi.Enabled)
+        {
+            builder.Services.AddHttpClient<IGeoIpLookup, IpApiGeoIpLookup>((sp, client) => {
+                var cfg = sp.GetRequiredService<SdkConfig>();
+                client.BaseAddress = new Uri(cfg.IpApi.Endpoint, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromMilliseconds(cfg.IpApi.TimeoutMilliseconds);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Starlight-SDK/1.0");
+            });
+        } else
+        {
+            builder.Services.TryAddSingleton<IGeoIpLookup, DefaultGeoIpLookup>();
+        }
+
         builder.Services
             .AddSingleton(config)
             .AddSingleton<IAuthService, AuthService>();
@@ -74,6 +88,8 @@ public static class ServiceExtensions
 
     public static IEndpointRouteBuilder MapSdkServer(this IEndpointRouteBuilder app)
     {
+        var sdkConfig = app.ServiceProvider.GetRequiredService<SdkConfig>();
+
         app.MapGet("/", () => Results.Ok("Starlight"));
         app.MapShieldEndpoints();
         app.MapComboGranterEndpoints();

@@ -60,7 +60,12 @@ public sealed class AuthService(
             password = decrypted;
         }
 
+        if (sdkConfig.MinPasswordLength > 0 && password.Length < sdkConfig.MinPasswordLength)
+            return AuthResult.Fail(Retcode.LoginCancel);
+
         var record = await accounts.GetAccountByUsernameAsync(account, ct);
+
+        var wasAutoCreated = false;
 
         if (record is null)
         {
@@ -71,6 +76,7 @@ public sealed class AuthService(
             try
             {
                 record = await accounts.CreateAccountAsync(account, Argon2Crypto.Hash(password), ct);
+                wasAutoCreated = true;
             }
             catch (SqliteException ex) when (!ct.IsCancellationRequested && IsUniqueConstraintViolation(ex))
             {
@@ -81,6 +87,8 @@ public sealed class AuthService(
                     throw;
             }
 
+            record.PasswordTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
             logger.LogInformation("Auto-created account id {Id} on first login", record.Id);
         } else if (!Argon2Crypto.Verify(password, record.PasswordHash))
         {
@@ -89,6 +97,12 @@ public sealed class AuthService(
 
         record.SessionToken = GenerateToken();
         record.RegisterDevice(deviceId);
+
+        if (wasAutoCreated || string.IsNullOrEmpty(record.RealNameOperation) || record.RealNameOperation == "None")
+        {
+            record.RequireRealPerson = true;
+            record.RealNameOperation = "bindRealname";
+        }
 
         await accounts.UpdateSessionAsync(record, ct);
         return AuthResult.Ok(record);

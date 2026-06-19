@@ -39,6 +39,62 @@ public sealed class AccountEntity : TrackableEntity
         set => Set(ref field, value);
     } = string.Empty;
 
+    [DbColumn("password_time")]
+    public long? PasswordTime
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("country", MaxLength = 8)]
+    public string? Country
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("realname_operation", MaxLength = 32)]
+    public string? RealNameOperation
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("require_real_person", IsRequired = true)]
+    public bool RequireRealPerson
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("require_safe_mobile", IsRequired = true)]
+    public bool RequireSafeMobile
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("require_activation", IsRequired = true)]
+    public bool RequireActivation
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("require_device_grant", IsRequired = true)]
+    public bool RequireDeviceGrant
+    {
+        get;
+        set => Set(ref field, value);
+    }
+
+    [DbColumn("account_type", IsRequired = true)]
+    public int AccountType
+    {
+        get;
+        set => Set(ref field, value);
+    } = 1;
+
     [DbColumn("session_token", MaxLength = 64)]
     public string? SessionToken
     {

@@ -49,6 +49,15 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         entity.SessionToken = account.SessionToken;
         entity.ComboToken = account.ComboToken;
         entity.KnownDeviceIds = string.Join(DeviceIdDelimiter, account.KnownDeviceIds);
+        entity.Country = account.Country;
+        entity.RealNameOperation = account.RealNameOperation;
+        entity.RequireRealPerson = account.RequireRealPerson;
+        entity.RequireSafeMobile = account.RequireSafeMobile;
+        entity.RequireActivation = account.RequireActivation;
+        entity.RequireDeviceGrant = account.RequireDeviceGrant;
+        entity.AccountType = account.AccountType;
+        entity.PasswordTime = account.PasswordTime;
+
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync(ct);
@@ -61,7 +70,14 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
         Username = entity.Username,
         Email = entity.Email ?? string.Empty,
         PasswordHash = entity.Password,
-        PasswordTime = 0,
+        PasswordTime = entity.PasswordTime ?? 0,
+        Country = entity.Country ?? string.Empty,
+        RealNameOperation = entity.RealNameOperation ?? "None",
+        RequireRealPerson = entity.RequireRealPerson,
+        RequireSafeMobile = entity.RequireSafeMobile,
+        RequireActivation = entity.RequireActivation,
+        RequireDeviceGrant = entity.RequireDeviceGrant,
+        AccountType = entity.AccountType,
         SessionToken = entity.SessionToken ?? string.Empty,
         ComboToken = entity.ComboToken ?? string.Empty,
         KnownDeviceIds = string.IsNullOrEmpty(entity.KnownDeviceIds) ?

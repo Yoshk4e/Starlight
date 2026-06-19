@@ -26,7 +26,33 @@ public sealed class Account
     /// </summary>
     public string PasswordHash { get; set; } = string.Empty;
 
-    public int PasswordTime { get; set; }
+    public long PasswordTime { get; set; }
+
+    /// <summary>
+    /// ISO-3166 country code associated with the account. Populated from
+    /// <see cref="Starlight.SDK.Services.IGeoIpLookup"/> on first login
+    /// and refreshed on subsequent logins.
+    /// </summary>
+    public string Country { get; set; } = string.Empty;
+
+    public string RealNameOperation { get; set; } = "None";
+
+    /// <summary>Whether the account must still complete real-person verification.</summary>
+    public bool RequireRealPerson { get; set; }
+
+    /// <summary>Whether the account must still bind a "safe" mobile number.</summary>
+    public bool RequireSafeMobile { get; set; }
+
+    /// <summary>Whether the account must be reactivated by the user.</summary>
+    public bool RequireActivation { get; set; }
+
+    /// <summary>Whether the account must acknowledge a new device grant.</summary>
+    public bool RequireDeviceGrant { get; set; }
+
+    /// <summary>
+    /// Combo account type. <c>0</c> = guest, <c>1</c> = normal account.
+    /// </summary>
+    public int AccountType { get; set; } = 1;
 
     /// <summary>
     /// Token returned by the shield <c>login</c> endpoint and consumed by

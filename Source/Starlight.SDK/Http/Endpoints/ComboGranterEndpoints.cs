@@ -14,15 +14,9 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ComboGranterEndpoints
 {
-    private static readonly string[] PathPrefixes = [
-        "/hk4e_global/combo/granter/login",
-        "/hk4e_cn/combo/granter/login",
-        "/combo/granter/login"
-    ];
-
     public static void MapComboGranterEndpoints(this IEndpointRouteBuilder routes)
     {
-        foreach (var prefix in PathPrefixes)
+        foreach (var prefix in SdkRoutes.ComboGranterPathPrefixes)
         {
             routes.MapPost($"{prefix}/v2/login", HandleLoginV2Async);
             routes.MapPost($"{prefix}/login", HandleLoginV2Async);
@@ -30,9 +24,11 @@ public static class ComboGranterEndpoints
     }
 
     private static async Task<IResult> HandleLoginV2Async(
+        HttpContext httpContext,
         [FromBody] ComboGranterLoginRequest? body,
         [FromHeader(Name = "x-rpc-device_id")] string? deviceId,
         [FromServices] IAuthService auth,
+        [FromServices] IGeoIpLookup geoIp,
         [FromServices] SdkConfig sdkConfig,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken ct
@@ -47,6 +43,12 @@ public static class ComboGranterEndpoints
             || string.IsNullOrEmpty(body.Device)
             || string.IsNullOrEmpty(deviceId))
         {
+            return Results.Ok(ApiResponse.From(Retcode.ParameterError));
+        }
+
+        if (!SdkValidations.IsValidAppId(body.AppId.GetValueOrDefault()))
+        {
+            logger.LogInformation("Rejected combo granter login: app_id {AppId} is not an ApplicationId", body.AppId);
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
         }
 
@@ -93,19 +95,30 @@ public static class ComboGranterEndpoints
 
         var acc = result.Account;
 
+        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
+        var countryCode = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(countryCode))
+            countryCode = acc.Country;
+
+        if (string.IsNullOrWhiteSpace(countryCode))
+            countryCode = sdkConfig.DefaultCountryCode;
+
+        var isGuest = acc.AccountType == 0;
+
         var innerJson = JsonSerializer.Serialize(new ComboInnerData {
-            Guest = inner.Guest.GetValueOrDefault(),
-            CountryCode = "US",
+            Guest = isGuest,
+            CountryCode = countryCode,
             IsNewRegister = false
         });
 
         var payload = new ComboGranterLoginResponse {
-            ComboId = "0",
+            ComboId = sdkConfig.DefaultComboId,
             OpenId = acc.Id.ToString(),
             ComboToken = acc.ComboToken,
             Data = innerJson,
             Heartbeat = false,
-            AccountType = inner.Guest.GetValueOrDefault() ? 0 : 1,
+            AccountType = acc.AccountType,
             FatigueRemind = null
         };
 

@@ -118,6 +118,102 @@ public sealed class SdkConfig
     /// created.
     /// </summary>
     public bool AllowAccountAutoCreate { get; set; }
+
+    /// <summary>
+    /// ISO-3166 country code returned to the client when GeoIP lookup is
+    /// unavailable or disabled. Corresponds to the literal <c>"US"</c>
+    /// value that was previously baked into <see cref="Starlight.SDK.Http.Models.ShieldAccountInfo"/>
+    /// and <see cref="Starlight.SDK.Http.Models.ComboInnerData"/> as a
+    /// default.
+    /// </summary>
+    public string DefaultCountryCode { get; set; } = "US";
+
+    /// <summary>
+    /// Value reported in <c>realname_operation</c> when no real-name flow
+    /// is pending for the account.
+    /// </summary>
+    public string DefaultRealNameOperation { get; set; } = "None";
+
+    /// <summary>
+    /// Value reported in <c>combo_id</c> on the combo granter login
+    /// response.
+    /// Still go no idea what "ComboID" is really used for maybe hiro could know
+    /// </summary>
+    public string DefaultComboId { get; set; } = "0";
+
+    /// <summary>
+    /// Minimum accepted length of a (decrypted) password.
+    /// </summary>
+    public int MinPasswordLength { get; set; } = 15;
+
+    /// <summary>
+    /// Configuration for the real ip-api.com GeoIP lookup. When
+    /// <see cref="IpApiGeoIpConfig.Enabled"/> is <c>true</c> the SDK
+    /// registers <see cref="Starlight.SDK.Services.IpApiGeoIpLookup"/>
+    /// as the <see cref="Starlight.SDK.Services.IGeoIpLookup"/> implementation;
+    /// otherwise the no-op <see cref="Starlight.SDK.Services.DefaultGeoIpLookup"/>
+    /// is used and every request resolves to
+    /// <see cref="DefaultCountryCode"/>.
+    /// </summary>
+    public IpApiGeoIpConfig IpApi { get; set; } = new();
+}
+
+/// <summary>
+/// Configuration for the ip-api.com JSON endpoint
+/// (<a href="https://ip-api.com/docs/api:json">docs</a>). The free tier
+/// is HTTP-only, requires no API key, and is rate-limited to 45 requests
+/// per minute per server IP. The lookup implementation caches results
+/// client-side and respects the <c>X-Rl</c> / <c>X-Ttl</c> rate-limit
+/// headers returned by the service.
+/// </summary>
+public sealed class IpApiGeoIpConfig
+{
+    /// <summary>
+    /// When <c>true</c>, the SDK calls ip-api.com to resolve client IPs
+    /// to country codes. When <c>false</c> (default), the no-op
+    /// <see cref="Starlight.SDK.Services.DefaultGeoIpLookup"/> is used
+    /// and every request resolves to
+    /// <see cref="SdkConfig.DefaultCountryCode"/>.
+    /// </summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Base URL of the ip-api.com JSON endpoint. The free tier only
+    /// serves HTTP; if you have a pro account with HTTPS access, change
+    /// this to <c>https://pro.ip-api.com/json</c> (and set
+    /// <see cref="ApiKey"/>).
+    /// </summary>
+    public string Endpoint { get; set; } = "http://ip-api.com/json";
+
+    /// <summary>
+    /// Optional API key for the ip-api.com pro tier.
+    /// </summary>
+    public string? ApiKey { get; set; }
+
+    /// <summary>
+    /// Response language for the (unused) country name field. ip-api.com
+    /// supports <c>en</c>, <c>de</c>, <c>es</c>, <c>pt-BR</c>, <c>fr</c>,
+    /// <c>ja</c>, <c>zh-CN</c>, <c>ru</c>. Default is <c>en</c>. The
+    /// SDK only consumes the <c>countryCode</c> field, which is always
+    /// ISO-3166-1 alpha-2 regardless of language.
+    /// </summary>
+    public string Lang { get; set; } = "en";
+
+    /// <summary>
+    /// Per-IP cache TTL in seconds. Successful lookups are cached for
+    /// this duration to respect the 45 req/min rate limit across
+    /// repeated logins from the same client. Defaults to 5 minutes.
+    /// Set to <c>0</c> to disable caching entirely.
+    /// </summary>
+    public int CacheTtlSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// HTTP request timeout in milliseconds. The lookup is on the
+    /// critical path of every login, so keep this short and fall back
+    /// to the configured default country code on timeout. Defaults to
+    /// 2 seconds.
+    /// </summary>
+    public int TimeoutMilliseconds { get; set; } = 2000;
 }
 
 public sealed class SqliteConfig

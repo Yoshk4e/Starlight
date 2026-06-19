@@ -1,7 +1,6 @@
 using Google.Protobuf;
 using Starlight.Protobuf.Core;
 using Starlight.Protobuf.Fixtures;
-using Starlight.Protobuf.Fixtures.V99;
 using Xunit;
 
 namespace Starlight.Protobuf.Tests;
@@ -14,7 +13,7 @@ namespace Starlight.Protobuf.Tests;
 /// </summary>
 public sealed class ScalarMatrixTests
 {
-    private static readonly ScalarMatrixSerializer Serializer = ScalarMatrixSerializer.Instance;
+    private static readonly Fixtures.V99.ScalarMatrixSerializer Serializer = Fixtures.V99.ScalarMatrixSerializer.Instance;
 
     private static ScalarMatrix Sample() => new() {
         FInt32 = 123,

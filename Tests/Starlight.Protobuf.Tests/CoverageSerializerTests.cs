@@ -1,6 +1,5 @@
 using Starlight.Protobuf.Core;
 using Starlight.Protobuf.Fixtures;
-using Starlight.Protobuf.Fixtures.V99;
 using Xunit;
 
 namespace Starlight.Protobuf.Tests;
@@ -13,7 +12,7 @@ namespace Starlight.Protobuf.Tests;
 /// </summary>
 public sealed class CoverageSerializerTests
 {
-    private static readonly CoverageSerializer Serializer = CoverageSerializer.Instance;
+    private static readonly Fixtures.V99.CoverageSerializer Serializer = Fixtures.V99.CoverageSerializer.Instance;
 
     // ---- proto3 optional (explicit presence) --------------------------------
 

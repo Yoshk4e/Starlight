@@ -65,8 +65,7 @@ public static class ShieldEndpoints
             return Results.Ok(ApiResponse.From(result.Code));
 
         var acc = result.Account;
-
-        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
+        var remoteIp = GetClientIp(httpContext);
         var country = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(country))
@@ -81,7 +80,11 @@ public static class ShieldEndpoints
             await accounts.UpdateSessionAsync(acc, ct);
         }
 
-        var realNameOperation = string.IsNullOrWhiteSpace(acc.RealNameOperation) ? sdkConfig.DefaultRealNameOperation : acc.RealNameOperation;
+        // config default can also be blank, so fall back to "None" explicitly
+        // instead of letting a null/empty value sneak into the response.
+        var realNameOperation = string.IsNullOrWhiteSpace(acc.RealNameOperation) ?
+            string.IsNullOrWhiteSpace(sdkConfig.DefaultRealNameOperation) ? "None" : sdkConfig.DefaultRealNameOperation :
+            acc.RealNameOperation;
 
         var payload = new ShieldLoginResponse {
             Account = new ShieldAccountInfo {
@@ -99,5 +102,22 @@ public static class ShieldEndpoints
         };
 
         return Results.Ok(ApiResponse.Ok(payload));
+    }
+
+    // behind a reverse proxy, Connection.RemoteIpAddress is just the proxy's
+    // own IP, so GeoIP lookups need the real client IP from forwarded headers.
+    private static string? GetClientIp(HttpContext httpContext)
+    {
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+            return forwardedFor.Split(',')[0].Trim();
+
+        var realIp = httpContext.Request.Headers["X-Real-IP"].ToString();
+
+        if (!string.IsNullOrWhiteSpace(realIp))
+            return realIp.Trim();
+
+        return httpContext.Connection.RemoteIpAddress?.ToString();
     }
 }

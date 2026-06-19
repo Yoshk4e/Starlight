@@ -13,6 +13,8 @@ using Starlight.Database.DependencyInjection;
 using Starlight.Game;
 using Starlight.Game.Resources;
 using Starlight.Rpc;
+using Starlight.Rpc.Tunnel;
+using Starlight.Rpc.Tunnel.Connection;
 using Starlight.SDK;
 
 namespace Starlight;
@@ -85,7 +87,12 @@ internal static class Program
                 .AddSerilog()
                 .AddSingleton(_ => Config.Instance)
                 .AddSingleton<GameData>()
-                .AddSingleton<RpcTransport, DirectRpcTransport>();
+                .AddSingleton<RpcTransport, DirectRpcTransport>()
+                .AddSingleton<ITunnelBroker, DirectTunnelBroker>()
+                .AddSingleton<ITunnelConnector, DirectTunnelConnector>()
+                .AddSingleton<ITunnelAcceptor, DirectTunnelAcceptor>()
+                .AddSingleton<TunnelClient>()
+                .AddSingleton<TunnelHost>();
 
             builder.Services
                 .AddCommands()

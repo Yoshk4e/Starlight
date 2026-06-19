@@ -1,7 +1,6 @@
 using Google.Protobuf;
 using Starlight.Protobuf.Core;
 using Starlight.Protobuf.Fixtures;
-using Starlight.Protobuf.Fixtures.V99;
 using Starlight.Protobuf.Serialization;
 using Xunit;
 
@@ -21,8 +20,8 @@ namespace Starlight.Protobuf.Tests;
 /// </summary>
 public sealed class RemapTests
 {
-    private static readonly RemapProbeSerializer Serializer = RemapProbeSerializer.Instance;
-    private static MessageDescriptor Descriptor => RemapProbeSerializer.Descriptor;
+    private static readonly Fixtures.V99.RemapProbeSerializer Serializer = Fixtures.V99.RemapProbeSerializer.Instance;
+    private static MessageDescriptor Descriptor => Fixtures.V99.RemapProbeSerializer.Descriptor;
 
     private static RemapProbe Sample() => new() {
         A = 123,
@@ -197,7 +196,7 @@ public sealed class RemapTests
                 {
                     failures.Enqueue(e);
                 }
-            }, token)).ToArray();
+            })).ToArray();
 
             await Task.WhenAll(tasks);
         }

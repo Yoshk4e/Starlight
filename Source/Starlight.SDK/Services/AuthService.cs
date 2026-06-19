@@ -38,7 +38,7 @@ public sealed class AuthService(
     )
     {
         if (string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(password)
-            || account.Length > MaxAccountLength || deviceId.Length > MaxDeviceIdLength)
+                                               || account.Length > MaxAccountLength || deviceId.Length > MaxDeviceIdLength)
             return AuthResult.Fail(Retcode.ParameterError);
 
         // client wraps the password with our RSA public key before sending it
@@ -75,6 +75,7 @@ public sealed class AuthService(
             {
                 // lost the race, someone else created the account between our read and insert, just pick it up
                 record = await accounts.GetAccountByUsernameAsync(account, ct);
+
                 if (record is null)
                     throw;
             }
@@ -134,7 +135,7 @@ public sealed class AuthService(
         const int SqliteConstraintPrimaryKey = 1555;
 
         return ex.SqliteErrorCode == SqliteConstraint
-            && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
-                || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
+               && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
+                   || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
     }
 }

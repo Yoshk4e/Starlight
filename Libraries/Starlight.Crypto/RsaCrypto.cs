@@ -49,6 +49,7 @@ public sealed class RsaCrypto : IDisposable
     public static RsaCrypto FromPkcs8File(string path)
     {
         var contents = File.ReadAllText(path);
+
         if (contents.Contains(PemBeginMarker, StringComparison.Ordinal))
             return FromBase64Pkcs8(contents);
 

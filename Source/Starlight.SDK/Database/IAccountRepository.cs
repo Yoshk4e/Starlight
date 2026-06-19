@@ -27,6 +27,16 @@ public interface IAccountRepository
     Task<Account> CreateAccountAsync(string username, string passwordHash, CancellationToken ct);
 
     /// <summary>
+    /// Creates a brand-new account keyed by email (rather than username).
+    /// Used by the ma-passport <c>appLoginByPassword</c> auto-create flow
+    /// when <see cref="Starlight.Common.SdkConfig.AllowAccountAutoCreate"/>
+    /// is enabled and no existing account matches the supplied email.
+    /// Both <c>Username</c> and <c>Email</c> columns are populated with
+    /// the lowercased email so subsequent lookups by either field work.
+    /// </summary>
+    Task<Account> CreateAccountFromEmailAsync(string email, string passwordHash, CancellationToken ct);
+
+    /// <summary>
     /// Persists the rotating fields (session token, combo token, known
     /// device ids) after an auth operation succeeds.
     /// </summary>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Starlight.Common;
@@ -133,10 +134,43 @@ public static class PassportEndpoints
         if (password.Length < login.MinPasswordLength || password.Length > login.MaxPasswordLength)
             return Results.Ok(ApiResponse.From(Retcode.MaPassportPasswordFormatError));
 
-        var acc = await accounts.GetAccountByEmailAsync(account, ct);
-        if (acc is null || !Argon2Crypto.Verify(password, acc.PasswordHash))
-            return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountMismatch));
+        var acc = await accounts.GetAccountByEmailAsync(account, ct)
+                  ?? await accounts.GetAccountByUsernameAsync(account, ct);
 
+        var wasAutoCreated = false;
+
+        if (acc is null)
+        {
+            if (!sdkConfig.AllowAccountAutoCreate)
+                return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountMismatch));
+
+            try
+            {
+                acc = await accounts.CreateAccountFromEmailAsync(account, Argon2Crypto.Hash(password), ct);
+                wasAutoCreated = true;
+            }
+            catch (SqliteException ex) when (!ct.IsCancellationRequested && IsUniqueConstraintViolation(ex))
+            {
+                acc = await accounts.GetAccountByEmailAsync(account, ct)
+                      ?? await accounts.GetAccountByUsernameAsync(account, ct);
+
+                if (acc is null)
+                    throw;
+            }
+
+            acc.PasswordTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            logger.LogInformation("Auto-created account id {Id} on ma-passport login (email={Email})", acc.Id, account);
+        }
+        else if (!Argon2Crypto.Verify(password, acc.PasswordHash))
+        {
+            return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountMismatch));
+        }
+
+        if (wasAutoCreated || string.IsNullOrEmpty(acc.RealNameOperation) || acc.RealNameOperation == "None")
+        {
+            acc.RequireRealPerson = true;
+            acc.RealNameOperation = "bindRealname";
+        }
 
         if (!login.SkipDeviceIdCheck
             && acc.KnownDeviceIds.Count > 0
@@ -162,10 +196,6 @@ public static class PassportEndpoints
             bindEmailActionTicket: string.Empty,
             country: acc.Country)));
     }
-
-    // -----------------------------------------------------------------------
-    // appLoginByAuthTicket
-    // -----------------------------------------------------------------------
 
     /// <summary>
     /// Handles <c>POST /hk4e_global/account/ma-passport/api/appLoginByAuthTicket</c>.
@@ -349,6 +379,7 @@ public static class PassportEndpoints
         return new string(buffer);
     }
 
+
     private static string MaskString(string? text)
     {
         if (string.IsNullOrEmpty(text))
@@ -361,6 +392,17 @@ public static class PassportEndpoints
         var end = text.Length > 5 ? 2 : 1;
         var masked = new string('*', text.Length - start - end);
         return string.Concat(text.AsSpan(0, start), masked, text.AsSpan(text.Length - end));
+    }
+
+    private static bool IsUniqueConstraintViolation(SqliteException ex)
+    {
+        const int SqliteConstraint = 19;
+        const int SqliteConstraintUnique = 2067;
+        const int SqliteConstraintPrimaryKey = 1555;
+
+        return ex.SqliteErrorCode == SqliteConstraint
+               && (ex.SqliteExtendedErrorCode == SqliteConstraintUnique
+                   || ex.SqliteExtendedErrorCode == SqliteConstraintPrimaryKey);
     }
 
     private static string? GetClientIp(HttpContext httpContext)

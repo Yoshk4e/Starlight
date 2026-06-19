@@ -89,7 +89,7 @@ public sealed class MaPassportTokenInfo
 public sealed class MaPassportUserInfo
 {
     [JsonPropertyName("aid")]
-    public uint Aid { get; set; }
+    public string Aid { get; set; }
 
     [JsonPropertyName("mid")]
     public string Mid { get; set; } = "nigs";

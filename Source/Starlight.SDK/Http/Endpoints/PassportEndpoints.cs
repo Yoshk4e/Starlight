@@ -340,8 +340,8 @@ public static class PassportEndpoints
                 TokenType = tokenType
             },
             UserInfo = new MaPassportUserInfo {
-                Aid = acc.Id,
-                Mid = "nigs",
+                Aid = acc.Id.ToString(),
+                Mid = acc.Id.ToString(),
                 AccountName = acc.Username,
                 Email = MaskString(acc.Email),
                 IsEmailVerify = 0,
@@ -354,7 +354,7 @@ public static class PassportEndpoints
                 RebindAreaCode = string.Empty,
                 RebindMobile = string.Empty,
                 RebindMobileTime = "0",
-                Links = new(),
+                Links = [],
                 Country = country,
                 PasswordTime = acc.PasswordTime > 0 ? acc.PasswordTime.ToString() : "0",
                 UnmaskedEmail = string.Empty,

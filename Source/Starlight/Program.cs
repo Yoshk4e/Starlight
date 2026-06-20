@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Builder;
 using Starlight.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -75,16 +76,16 @@ internal static class Program
             .CreateLogger();
         Log.Information("Starting Starlight...");
 
-        Config.Load();
         LogLevel.MinimumLevel = Config.LogLevel;
 
         try
         {
-            var builder = Host.CreateApplicationBuilder(args);
+            var builder = WebApplication.CreateBuilder(args);
+
+            builder.AddConfig();
 
             builder.Services
                 .AddSerilog()
-                .AddSingleton(_ => Config.Instance)
                 .AddSingleton<GameData>()
                 .AddSingleton<RpcTransport, DirectRpcTransport>()
                 .AddSingleton<ITunnelBroker, DirectTunnelBroker>()
@@ -97,11 +98,16 @@ internal static class Program
                 .AddCommands()
                 .AddHostedService(s => s.GetRequiredService<RpcTransport>())
                 .AddDbGate(Config.Instance)
-                .AddSdkServer(Config.Instance)
                 .AddHostedService<GateServerService>();
+
+            builder.AddSdkServer();
 
             // Prepare the application.
             var app = builder.Build();
+#if DEBUG
+            app.UseSerilogRequestLogging();
+#endif
+            app.MapSdkServer();
 
             StartTime.Stop();
             Log.Information("Done! Finished starting in {Elapsed}ms.", StartTime.ElapsedMilliseconds);

@@ -1,28 +1,25 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Starlight.Common;
 using Starlight.Kcp;
 
 namespace Starlight.Game;
 
 public sealed class GateServerService(
+    IConfiguration config,
     ILogger<GateServerService> logger
 ) : BackgroundService
 {
+    private readonly GateConfig _config = config.GetSection("Game").Get<GateConfig>() ?? new GateConfig();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
             var handler = new GateServerHandler(logger);
 
-            var server = new KcpServer(
-                Config.Server.Game.BindAddress,
-                Config.Server.Game.BindPort,
-                handler);
-
-            logger.LogInformation("Starting GameServer at {Address}:{Port}",
-                Config.Server.Game.BindAddress,
-                Config.Server.Game.BindPort);
+            var server = new KcpServer(_config.BindAddress, _config.BindPort, handler);
+            logger.LogInformation("Starting GameServer at {Address}:{Port}", _config.BindAddress, _config.BindPort);
 
             await server.RunAsync(stoppingToken);
         }

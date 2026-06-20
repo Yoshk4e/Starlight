@@ -22,14 +22,14 @@ public interface IAccountRepository
     /// <summary>
     /// Creates a brand-new account with the given username and an already-hashed
     /// password, used by the auto-create-on-login flow when
-    /// <see cref="Starlight.Common.SdkConfig.AllowAccountAutoCreate"/> is enabled.
+    /// <see cref="SdkConfig.AllowAccountAutoCreate"/> is enabled.
     /// </summary>
     Task<Account> CreateAccountAsync(string username, string passwordHash, CancellationToken ct);
 
     /// <summary>
     /// Creates a brand-new account keyed by email (rather than username).
     /// Used by the ma-passport <c>appLoginByPassword</c> auto-create flow
-    /// when <see cref="Starlight.Common.SdkConfig.AllowAccountAutoCreate"/>
+    /// when <see cref="SdkConfig.AllowAccountAutoCreate"/>
     /// is enabled and no existing account matches the supplied email.
     /// Both <c>Username</c> and <c>Email</c> columns are populated with
     /// the lowercased email so subsequent lookups by either field work.

@@ -1,11 +1,8 @@
-using System.Net.Mime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using Starlight.Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Starlight.SDK.Http.Endpoints;
 
@@ -31,46 +28,49 @@ public static class WebstaticEndpoints
 
     private static IResult HandleVersionFile(
         HttpContext httpContext,
-        [FromServices] SdkConfig sdkConfig
+        [FromServices] SdkConfig sdkConfig,
+        [FromServices] ILoggerFactory loggerFactory
     )
     {
         var path = httpContext.Request.Path.Value ?? string.Empty;
 
         if (sdkConfig.Webstatic.VersionMap.TryGetValue(path, out var version))
         {
-            return Results.Ok(new VersionFileResponse { Version = version });
+            return Results.Ok(new VersionFileResponse(version));
         }
 
-        return HandleFile(httpContext, sdkConfig);
+        return HandleFile(httpContext, sdkConfig, loggerFactory);
     }
 
     private static IResult HandleFile(
         HttpContext httpContext,
-        [FromServices] SdkConfig sdkConfig
+        [FromServices] SdkConfig sdkConfig,
+        [FromServices] ILoggerFactory loggerFactory
     )
     {
-        var logger = httpContext.RequestServices
-            .GetRequiredService<ILoggerFactory>()
-            .CreateLogger("Starlight.SDK.Webstatic");
+        // ILogger<T> can't be used here because WebstaticEndpoints is a
+        // static class (CS0718). The factory caches by category so this
+        // is still a cheap lookup, just not the ideal pattern. (again)
+        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.WebstaticEndpoints");
 
         var resourceRoot = sdkConfig.Webstatic.ResourceRoot;
 
         if (string.IsNullOrWhiteSpace(resourceRoot))
         {
             logger.LogDebug("Webstatic miss (no ResourceRoot configured): {Path}", httpContext.Request.Path);
-            return Results.NotFound(new WebstaticError { Error = "Not Found" });
+            return Results.NotFound(new WebstaticError());
         }
 
         if (!Directory.Exists(resourceRoot))
         {
             logger.LogWarning("Configured WebstaticConfig.ResourceRoot does not exist: {Root}", resourceRoot);
-            return Results.NotFound(new WebstaticError { Error = "Not Found" });
+            return Results.NotFound(new WebstaticError());
         }
 
         var relativePath = httpContext.Request.Path.Value?.TrimStart('/') ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(relativePath))
-            return Results.NotFound(new WebstaticError { Error = "Not Found" });
+            return Results.NotFound(new WebstaticError());
 
         var fullPath = Path.GetFullPath(Path.Combine(resourceRoot, relativePath));
         var rootFull = Path.GetFullPath(resourceRoot);
@@ -79,53 +79,22 @@ public static class WebstaticEndpoints
         if (!fullPath.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogWarning("Rejected path traversal attempt: {Path}", httpContext.Request.Path);
-            return Results.NotFound(new WebstaticError { Error = "Not Found" });
+            return Results.NotFound(new WebstaticError());
         }
 
         if (!File.Exists(fullPath))
         {
             logger.LogDebug("Webstatic miss (file not found): {Path}", fullPath);
-            return Results.NotFound(new WebstaticError { Error = "Not Found" });
+            return Results.NotFound(new WebstaticError());
         }
 
-        var contentType = GetContentType(fullPath);
+        var contentType = SdkHttpHelpers.GetContentType(fullPath);
         var fileBytes = File.ReadAllBytes(fullPath);
 
         return Results.File(fileBytes, contentType, Path.GetFileName(fullPath));
     }
 
-    private static string GetContentType(string path)
-    {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
+    public sealed record VersionFileResponse(int Version);
 
-        return ext switch {
-            ".json" => MediaTypeNames.Application.Json,
-            ".html" or ".htm" => MediaTypeNames.Text.Html,
-            ".css" => "text/css",
-            ".js" => "application/javascript",
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => MediaTypeNames.Image.Jpeg,
-            ".gif" => "image/gif",
-            ".webp" => "image/webp",
-            ".svg" => "image/svg+xml",
-            ".woff" => "font/woff",
-            ".woff2" => "font/woff2",
-            ".ttf" => "font/ttf",
-            ".otf" => "font/otf",
-            ".ico" => "image/x-icon",
-            ".txt" => MediaTypeNames.Text.Plain,
-            ".xml" => MediaTypeNames.Text.Xml,
-            _ => MediaTypeNames.Application.Octet
-        };
-    }
-
-    public sealed class VersionFileResponse
-    {
-        public int Version { get; init; }
-    }
-
-    public sealed class WebstaticError
-    {
-        public string Error { get; init; } = string.Empty;
-    }
+    public sealed record WebstaticError(string Error = "Not Found");
 }

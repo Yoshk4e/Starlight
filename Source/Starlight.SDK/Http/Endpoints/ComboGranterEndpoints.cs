@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
-using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.Crypto;
 using Starlight.SDK.Http.Models;
@@ -14,9 +13,12 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ComboGranterEndpoints
 {
+    private static readonly string[] PathPrefixes =
+        ["/hk4e_global/combo/granter/api", "/hk4e_cn/combo/granter/api", "/combo/granter/api"];
+
     public static void MapComboGranterEndpoints(this IEndpointRouteBuilder routes)
     {
-        foreach (var prefix in SdkRoutes.ComboGranterPathPrefixes)
+        foreach (var prefix in PathPrefixes)
         {
             routes.MapPost($"{prefix}/v2/login", HandleLoginV2Async);
             routes.MapPost($"{prefix}/login", HandleLoginV2Async);
@@ -40,7 +42,10 @@ public static class ComboGranterEndpoints
         CancellationToken ct
     )
     {
-        var logger = loggerFactory.CreateLogger("Starlight.SDK.ComboGranter");
+        // ILogger<T> can't be used here because ComboGranterEndpoints is a
+        // static class (CS0718). The factory caches by category so this
+        // is still a cheap lookup, just not the ideal pattern. @magix you probably should check
+        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.ComboGranterEndpoints");
 
         if (body is null
             || body.AppId is null
@@ -55,7 +60,7 @@ public static class ComboGranterEndpoints
 
         if (!SdkUtils.IsValidAppId(body.AppId.GetValueOrDefault()))
         {
-            logger.LogInformation("Rejected combo granter login: app_id {AppId} is not an ApplicationId", body.AppId);
+            logger.LogDebug("Rejected combo granter login: app_id {AppId} is not an ApplicationId", body.AppId);
             return Results.Ok(ApiResponse.From(Retcode.ParameterError));
         }
 
@@ -71,7 +76,8 @@ public static class ComboGranterEndpoints
 
             if (string.IsNullOrEmpty(sdkConfig.HmacKey))
             {
-                logger.LogError("ComboGranter HMAC key is not configured but SkipSignatureCheck=false");
+                // Already warned at startup, Debug-only here to avoid spamming.
+                logger.LogDebug("ComboGranter HMAC key is not configured but SkipSignatureCheck=false");
                 return Results.Ok(ApiResponse.From(Retcode.SystemError));
             }
 
@@ -102,7 +108,7 @@ public static class ComboGranterEndpoints
 
         var acc = result.Account;
 
-        var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
+        var remoteIp = SdkHttpHelpers.GetClientIp(httpContext);
         var countryCode = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(countryCode))
@@ -151,28 +157,28 @@ public static class ComboGranterEndpoints
     /// appsflyer, notifications) are populated per platform.
     /// </summary>
     private static IResult HandleGetConfig(
-        [FromQuery] int? app_id,
-        [FromQuery] int? channel_id,
-        [FromQuery] int? client_type,
+        [FromQuery] int? appId,
+        [FromQuery] int? channelId,
+        [FromQuery] int? clientType,
         [FromServices] SdkConfig sdkConfig
     )
     {
-        if (app_id is null || channel_id is null || client_type is null
-            || !Enum.IsDefined(typeof(PlatformId), client_type.Value))
+        if (appId is null || channelId is null || clientType is null
+            || !Enum.IsDefined(typeof(PlatformId), clientType.Value))
         {
             return Results.Ok(ApiResponse.From(Retcode.SystemError));
         }
 
-        if (!SdkUtils.IsValidAppId(app_id.GetValueOrDefault()))
+        if (!SdkUtils.IsValidAppId(appId.GetValueOrDefault()))
             return Results.Ok(ApiResponse.From(Retcode.SystemError));
 
-        var platform = (PlatformId)client_type.Value;
+        var platform = (PlatformId)clientType.Value;
         var s = sdkConfig.Shield;
 
         var data = new ComboGranterConfigData {
             // channel_id == Official (1) -> protocol not modified;
             // any other channel -> protocol modified (i.e. needs ack).
-            Protocol = channel_id != (int)ChannelId.Official,
+            Protocol = channelId != (int)ChannelId.Official,
             QrEnabled = s.UseQRLogin,
             LogLevel = s.ApiLogLevel,
             AnnounceUrl = s.AnnouncementUrl,
@@ -192,20 +198,19 @@ public static class ComboGranterEndpoints
             data.QrAppIcons = s.QrAppIcons;
         }
 
-        // Per-platform functional_switch_configs.
         switch (platform)
         {
-            case PlatformId.Ios:
-                data.FunctionalSwitchConfigs[FunctionalSwitchKey.JPush] = s.JPushConfig;
+            case PlatformId.Ios or PlatformId.Android or PlatformId.CloudAndroid:
                 data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
-                break;
-            case PlatformId.Android:
-                data.FunctionalSwitchConfigs[FunctionalSwitchKey.JPush] = s.JPushConfig;
-                data.FunctionalSwitchConfigs[FunctionalSwitchKey.AllowNotification] = s.AllowNotificationConfig;
-                data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
-                break;
-            case PlatformId.CloudAndroid:
-                data.FunctionalSwitchConfigs[FunctionalSwitchKey.InitializeAppsFlyer] = s.InitializeAppsFlyerConfig;
+
+                if (platform is PlatformId.Ios or PlatformId.Android)
+                {
+                    data.FunctionalSwitchConfigs[FunctionalSwitchKey.JPush] = s.JPushConfig;
+
+                    if (platform is PlatformId.Android)
+                        data.FunctionalSwitchConfigs[FunctionalSwitchKey.AllowNotification] = s.AllowNotificationConfig;
+                }
+
                 break;
         }
 
@@ -260,15 +265,19 @@ public static class ComboGranterEndpoints
         if (!SdkUtils.IsValidAppId(app_id.Value))
             return Results.Ok(ApiResponse.From(Retcode.ProtocolFailed));
 
+        var isModified = channel_id is null || channel_id.Value != (int)ChannelId.Official;
+
         var data = new CompareProtocolVersionData {
-            Modified = true,
-            Protocol = new ProtocolInfo {
-                Id = 5,
-                AppId = app_id.Value,
-                Language = language!,
-                Major = major.Value,
-                Minimum = minimum.Value
-            }
+            Modified = isModified,
+            Protocol = isModified ?
+                new ProtocolInfo {
+                    Id = 5,
+                    AppId = app_id.Value,
+                    Language = language!,
+                    Major = major.Value,
+                    Minimum = minimum.Value
+                } :
+                null
         };
 
         return Results.Ok(ApiResponse.Ok(data));

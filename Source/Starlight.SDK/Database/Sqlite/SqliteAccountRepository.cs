@@ -15,6 +15,13 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
     /// </summary>
     private const string DeviceIdDelimiter = "|";
 
+    /// <summary>
+    /// Maximum length of the username derived from the email during
+    /// <see cref="CreateAccountFromEmailAsync"/>. Matches the DB column
+    /// limit on <see cref="AccountEntity.Username"/>.
+    /// </summary>
+    private const int MaxEmailUsernameLength = 64;
+
     public async Task<Account?> GetAccountById(uint id)
     {
         var entity = await db.FindAsync<AccountEntity>(id);
@@ -96,13 +103,6 @@ public sealed class SqliteAccountRepository(StarlightDatabase db) : IAccountRepo
 
         await db.SaveChangesAsync(ct);
     }
-
-    /// <summary>
-    /// Maximum length of the username derived from the email during
-    /// <see cref="CreateAccountFromEmailAsync"/>. Matches the DB column
-    /// limit on <see cref="AccountEntity.Username"/>.
-    /// </summary>
-    private const int MaxEmailUsernameLength = 64;
 
     private static Account Map(AccountEntity entity) => new() {
         Id = entity.Id,

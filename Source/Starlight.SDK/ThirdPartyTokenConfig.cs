@@ -1,7 +1,11 @@
 using System.Text.Json.Serialization;
 
-namespace Starlight.Common;
+namespace Starlight.SDK;
 
+/// <summary>
+/// Per-app third-party login token configuration. Used as the value
+/// type of <see cref="SdkShieldConfig.ThirdPartyConfigs"/>.
+/// </summary>
 public sealed class ThirdPartyTokenConfig
 {
     [JsonPropertyName("token_type")]

@@ -81,7 +81,8 @@ public static class PlatformIdExtensions
     /// combo box endpoint to gate telemetry-only config blocks.
     /// </summary>
     public static bool IsConsole(this PlatformId platform) =>
-        platform is PlatformId.CloudIos or PlatformId.CloudMacOs;
+        platform is PlatformId.PlayStation
+            or PlatformId.PlayStation5;
 
     /// <summary>
     /// Platforms that the combo box config endpoint rejects. Currently

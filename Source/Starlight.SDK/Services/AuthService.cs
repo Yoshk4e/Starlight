@@ -1,10 +1,9 @@
-using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
-using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.Crypto;
 using Starlight.SDK.Database;
+using Starlight.SDK.Http;
 
 namespace Starlight.SDK.Services;
 
@@ -95,7 +94,7 @@ public sealed class AuthService(
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
         }
 
-        record.SessionToken = GenerateToken();
+        record.SessionToken = SdkHttpHelpers.GenerateToken(TokenLength);
         record.RegisterDevice(deviceId);
 
         if (wasAutoCreated
@@ -124,22 +123,10 @@ public sealed class AuthService(
         if (record is null)
             return AuthResult.Fail(Retcode.LoginInvalidAccount);
 
-        record.ComboToken = GenerateToken();
+        record.ComboToken = SdkHttpHelpers.GenerateToken(TokenLength);
         record.RegisterDevice(deviceId);
 
         await accounts.UpdateSessionAsync(record, ct);
         return AuthResult.Ok(record);
-    }
-
-    private static string GenerateToken()
-    {
-        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        Span<char> buffer = stackalloc char[TokenLength];
-
-        for (var i = 0; i < TokenLength; i++)
-        {
-            buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
-        }
-        return new string(buffer);
     }
 }

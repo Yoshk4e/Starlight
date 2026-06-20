@@ -393,7 +393,6 @@ public sealed class KCP
             {
                 KcpVersion = DetermineKcpVersion(data, len);
             }
-            Console.WriteLine($"Determined KCP version: {KcpVersion}");
 
             if (KcpVersion == KcpVersion.KCP_UNKNOWN)
             {

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -6,12 +5,10 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.Crypto;
 using Starlight.SDK.Database;
 using Starlight.SDK.Database.Models;
-using Starlight.SDK.Http;
 using Starlight.SDK.Http.Models;
 using Starlight.SDK.Services;
 
@@ -30,9 +27,12 @@ namespace Starlight.SDK.Http.Endpoints;
 /// </summary>
 public static class PassportEndpoints
 {
+    private static readonly string[] PathPrefixes =
+        ["/hk4e_global/account/ma-passport/api", "/hk4e_cn/account/ma-passport/api", "/account/ma-passport/api"];
+
     public static void MapPassportEndpoints(this IEndpointRouteBuilder routes)
     {
-        foreach (var prefix in SdkRoutes.MaPassportPathPrefixes)
+        foreach (var prefix in PathPrefixes)
         {
             if (string.IsNullOrWhiteSpace(prefix))
                 continue;
@@ -58,13 +58,13 @@ public static class PassportEndpoints
         CancellationToken ct
     )
     {
-        var remoteIp = GetClientIp(httpContext);
+        var remoteIp = SdkHttpHelpers.GetClientIp(httpContext);
         var countryCode = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(countryCode))
             countryCode = sdkConfig.DefaultCountryCode;
 
-        var areaCode = CountryToMobileCode(countryCode);
+        var areaCode = SdkHttpHelpers.CountryToMobileCode(countryCode);
 
         return Results.Ok(ApiResponse.Ok(new MaPassportConfigData {
             Ip = new MaPassportIpInfo {
@@ -96,7 +96,10 @@ public static class PassportEndpoints
         CancellationToken ct
     )
     {
-        var logger = loggerFactory.CreateLogger("Starlight.SDK.Passport");
+        // ILogger<T> can't be used here because PassportEndpoints is a
+        // static class (CS0718). The factory caches by category so this
+        // is still a cheap lookup, just not the ideal pattern.
+        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.PassportEndpoints");
 
         if (body is null || string.IsNullOrEmpty(body.Account) || string.IsNullOrEmpty(body.Password))
             return Results.Ok(ApiResponse.From(Retcode.MaPassportParameterError));
@@ -117,7 +120,7 @@ public static class PassportEndpoints
 
             if (passwordCrypto is null)
             {
-                logger.LogError("appLoginByPassword: no RSA key configured but SkipRsaDecryption=false");
+                logger.LogDebug("appLoginByPassword: no RSA key configured but SkipRsaDecryption=false");
                 return Results.Ok(ApiResponse.From(Retcode.MaPassportSystemError));
             }
 
@@ -130,6 +133,11 @@ public static class PassportEndpoints
 
         if (!account.Contains('@'))
             return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountFormatError));
+
+        // TODO: ma-passport also supports a username-based login flow
+        // (distinct from the email flow above). We currently reject any
+        // non-email identifier, once the username login path is wired up,
+        // branch here on a username-shape check rather than failing.
 
         var login = sdkConfig.MaPassport.Login;
 
@@ -161,7 +169,7 @@ public static class PassportEndpoints
             }
 
             acc.PasswordTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            logger.LogInformation("Auto-created account id {Id} on ma-passport login (email={Email})", acc.Id, account);
+            logger.LogInformation("Auto-created account id {Id} on ma-passport login", acc.Id);
         } else if (!Argon2Crypto.Verify(password, acc.PasswordHash))
         {
             return Results.Ok(ApiResponse.From(Retcode.MaPassportAccountMismatch));
@@ -183,11 +191,11 @@ public static class PassportEndpoints
         }
 
         // Issue a fresh session token and persist.
-        acc.SessionToken = GenerateToken(login.TokenLength);
+        acc.SessionToken = SdkHttpHelpers.GenerateToken(login.TokenLength);
         acc.RegisterDevice(deviceId);
 
         if (string.IsNullOrEmpty(acc.Country))
-            acc.Country = await geoIp.GetCountryCodeAsync(GetClientIp(httpContext), ct).ConfigureAwait(false);
+            acc.Country = await geoIp.GetCountryCodeAsync(SdkHttpHelpers.GetClientIp(httpContext), ct).ConfigureAwait(false);
 
         await accounts.UpdateSessionAsync(acc, ct);
 
@@ -351,7 +359,7 @@ public static class PassportEndpoints
             Aid = acc.Id.ToString(),
             Mid = acc.Id.ToString(),
             AccountName = acc.Username,
-            Email = MaskString(acc.Email),
+            Email = SdkHttpHelpers.MaskString(acc.Email),
             IsEmailVerify = 0,
             AreaCode = string.Empty,
             Mobile = string.Empty,
@@ -369,105 +377,4 @@ public static class PassportEndpoints
             UnmaskedEmailType = 0
         }
     };
-
-    /// <summary>
-    /// Generates a random alphanumeric token of the given length. Mirrors
-    /// the AuthService helper so we don't take a dependency on it from
-    /// here.
-    /// </summary>
-    private static string GenerateToken(int length)
-    {
-        const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        Span<char> buffer = stackalloc char[length];
-
-        for (var i = 0; i < length; i++)
-            buffer[i] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
-
-        return new string(buffer);
-    }
-
-    private static string MaskString(string? text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return string.Empty;
-
-        if (text.Length < 4)
-            return new string(c: '*', text.Length);
-
-        var start = text.Length >= 10 ? 2 : 1;
-        var end = text.Length > 5 ? 2 : 1;
-        var masked = new string(c: '*', text.Length - start - end);
-        return string.Concat(text.AsSpan(start: 0, start), masked, text.AsSpan(text.Length - end));
-    }
-
-    private static string? GetClientIp(HttpContext httpContext)
-    {
-        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
-
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
-            return forwardedFor.Split(',')[0].Trim();
-
-        var realIp = httpContext.Request.Headers["X-Real-IP"].ToString();
-
-        if (!string.IsNullOrWhiteSpace(realIp))
-            return realIp.Trim();
-
-        return httpContext.Connection.RemoteIpAddress?.ToString();
-    }
-
-    /// <summary>
-    /// Maps an ISO-3166-1 alpha-2 country code to its ITU mobile dialling
-    /// code (without the leading +). Used by the ma-passport config
-    /// endpoint to populate <c>area_code</c> for the SDK's phone-input
-    /// flow. Returns an empty string for unknown countries.
-    /// </summary>
-    private static string CountryToMobileCode(string countryCode)
-    {
-        if (string.IsNullOrWhiteSpace(countryCode))
-            return string.Empty;
-
-        return countryCode.ToUpperInvariant() switch {
-            "US" => "1",
-            "CA" => "1",
-            "GB" => "44",
-            "FR" => "33",
-            "DE" => "49",
-            "JP" => "81",
-            "KR" => "82",
-            "CN" => "86",
-            "TW" => "886",
-            "HK" => "852",
-            "SG" => "65",
-            "IN" => "91",
-            "BR" => "55",
-            "RU" => "7",
-            "AU" => "61",
-            "NZ" => "64",
-            "IT" => "39",
-            "ES" => "34",
-            "PT" => "351",
-            "MX" => "52",
-            "ID" => "62",
-            "TH" => "66",
-            "VN" => "84",
-            "PH" => "63",
-            "MY" => "60",
-            "SA" => "966",
-            "AE" => "971",
-            "TR" => "90",
-            "NL" => "31",
-            "BE" => "32",
-            "CH" => "41",
-            "AT" => "43",
-            "SE" => "46",
-            "NO" => "47",
-            "DK" => "45",
-            "FI" => "358",
-            "PL" => "48",
-            "UA" => "380",
-            "EG" => "20",
-            "ZA" => "27",
-            _ => string.Empty
-        };
-    }
 }

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
-using Starlight.Common;
 using Starlight.SDK.Common;
 using Starlight.SDK.Database;
 using Starlight.SDK.Http.Models;
@@ -12,9 +11,12 @@ namespace Starlight.SDK.Http.Endpoints;
 
 public static class ShieldEndpoints
 {
+    private static readonly string[] PathPrefixes =
+        ["/hk4e_global/mdk/shield/api", "/hk4e_cn/mdk/shield/api", "/mdk/shield/api"];
+
     public static void MapShieldEndpoints(this IEndpointRouteBuilder routes)
     {
-        foreach (var prefix in SdkRoutes.ShieldPathPrefixes)
+        foreach (var prefix in PathPrefixes)
         {
             if (string.IsNullOrWhiteSpace(prefix))
                 continue;
@@ -67,7 +69,7 @@ public static class ShieldEndpoints
             return Results.Ok(ApiResponse.From(result.Code));
 
         var acc = result.Account;
-        var remoteIp = GetClientIp(httpContext);
+        var remoteIp = SdkHttpHelpers.GetClientIp(httpContext);
         var country = await geoIp.GetCountryCodeAsync(remoteIp, ct).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(country))
@@ -106,23 +108,6 @@ public static class ShieldEndpoints
         };
 
         return Results.Ok(ApiResponse.Ok(payload));
-    }
-
-    // behind a reverse proxy, Connection.RemoteIpAddress is just the proxy's
-    // own IP, so GeoIP lookups need the real client IP from forwarded headers.
-    private static string? GetClientIp(HttpContext httpContext)
-    {
-        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
-
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
-            return forwardedFor.Split(',')[0].Trim();
-
-        var realIp = httpContext.Request.Headers["X-Real-IP"].ToString();
-
-        if (!string.IsNullOrWhiteSpace(realIp))
-            return realIp.Trim();
-
-        return httpContext.Connection.RemoteIpAddress?.ToString();
     }
 
     /// <summary>

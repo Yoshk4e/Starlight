@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Starlight.Common;
 
 namespace Starlight.SDK.Http.Models;
 
@@ -90,7 +89,7 @@ public sealed class MaPassportTokenInfo
 public sealed class MaPassportUserInfo
 {
     [JsonPropertyName("aid")]
-    public string Aid { get; set; }
+    public string Aid { get; set; } = string.Empty;
 
     [JsonPropertyName("mid")]
     public string Mid { get; set; } = SdkDefaults.DefaultMid;

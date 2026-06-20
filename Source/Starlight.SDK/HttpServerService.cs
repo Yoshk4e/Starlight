@@ -46,7 +46,10 @@ public static class ServiceExtensions
         // rather than attempting decryption with a no-op instance.
         builder.Services.AddSingleton<RsaCrypto>(_ => {
             if (string.IsNullOrWhiteSpace(config.PasswordRsaKeyPath))
+            {
+                Log.Warning("SDK password RSA key path is not configured; is_crypto=true logins will be rejected");
                 return null!;
+            }
 
             if (!File.Exists(config.PasswordRsaKeyPath))
             {
@@ -64,6 +67,11 @@ public static class ServiceExtensions
                 return null!;
             }
         });
+
+        if (!config.SkipSignatureCheck && string.IsNullOrEmpty(config.HmacKey))
+        {
+            Log.Warning("SDK HMAC key is not configured but SkipSignatureCheck=false; combo-granter logins will fail with SystemError");
+        }
 
         if (config.IpApi.Enabled)
         {
@@ -88,6 +96,14 @@ public static class ServiceExtensions
     }
 
 #if DEBUG
+    /// <summary>
+    /// Lightweight per-request logging middleware for development. Only
+    /// compiled in DEBUG builds to avoid spamming production logs.
+    /// TODO(magix review): decide whether to keep this here or
+    /// drop it in favour of Serilog.AspNetCore.RequestLoggingMiddleware,
+    /// which already handles the same use-case and is wired up via
+    /// <c>app.UseSerilogRequestLogging()</c>.
+    /// </summary>
     public static IApplicationBuilder UseSdkRequestLogging(this IApplicationBuilder app)
     {
         return app.Use(async (context, next) => {

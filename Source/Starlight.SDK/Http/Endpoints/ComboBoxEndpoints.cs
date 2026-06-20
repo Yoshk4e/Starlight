@@ -16,9 +16,12 @@ namespace Starlight.SDK.Http.Endpoints;
 /// </summary>
 public static class ComboBoxEndpoints
 {
+    private static readonly string[] PathPrefixes =
+        ["/hk4e_global/combo/box/api/config", "/hk4e_cn/combo/box/api/config", "/combo/box/api/config"];
+
     public static void MapComboBoxEndpoints(this IEndpointRouteBuilder routes)
     {
-        foreach (var prefix in SdkRoutes.ComboBoxPathPrefixes)
+        foreach (var prefix in PathPrefixes)
         {
             if (string.IsNullOrWhiteSpace(prefix))
                 continue;
@@ -55,22 +58,19 @@ public static class ComboBoxEndpoints
 
         switch (platform)
         {
-            case PlatformId.BrowserA:
-            case PlatformId.BrowserB:
+            case PlatformId.BrowserA or PlatformId.BrowserB:
                 vals[ComboBoxConfigKey.ModifyRealNameOtherVerify] = Bool(shield.ModifyRealNameOtherVerify);
                 vals[ComboBoxConfigKey.LoginFlowNotification] = JsonBool("enable", shield.EnableLoginFlowNotification);
                 break;
             case PlatformId.PlayStation5:
                 vals[ComboBoxConfigKey.LoginFlowNotification] = JsonBool("enable", shield.EnableLoginFlowNotification);
                 break;
-            case PlatformId.CloudIos:
-            case PlatformId.CloudMacOs:
+            case PlatformId.CloudIos or PlatformId.CloudMacOs:
                 vals[ComboBoxConfigKey.EnableTelemetryDataUpload] = Bool(box.EnableConsoleTelemetryUpload);
                 vals[ComboBoxConfigKey.EnableTelemetryH5Log] = Bool(box.EnableTelemetryH5Log);
                 vals[ComboBoxConfigKey.NetworkReportConfig] = "{\n\t\"enable\": 1,\n\t\"status_codes\": [200]\n}";
                 break;
-            case PlatformId.Android:
-            case PlatformId.CloudAndroid:
+            case PlatformId.Android or PlatformId.CloudAndroid:
                 vals[ComboBoxConfigKey.AlipayRecommend] = Bool(box.EnableAliPayRecommend);
                 vals[ComboBoxConfigKey.WatermarkEnableWebNotice] = Bool(box.WatermarkEnableWebNotice);
                 vals[ComboBoxConfigKey.EnableOaid] = Bool(box.EnableOaid);

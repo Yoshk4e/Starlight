@@ -96,10 +96,10 @@ public static class PassportEndpoints
         CancellationToken ct
     )
     {
-        // ILogger<T> can't be used here because PassportEndpoints is a
-        // static class (CS0718). The factory caches by category so this
-        // is still a cheap lookup, just not the ideal pattern.
-        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.PassportEndpoints");
+        // A static type can't be a generic type argument (CS0718), so
+        // ILogger<T> isn't an option here. The factory caches by category,
+        // so this lookup is cheap.
+        var logger = loggerFactory.CreateLogger(typeof(PassportEndpoints).FullName!);
 
         if (body is null || string.IsNullOrEmpty(body.Account) || string.IsNullOrEmpty(body.Password))
             return Results.Ok(ApiResponse.From(Retcode.MaPassportParameterError));

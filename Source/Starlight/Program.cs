@@ -105,7 +105,7 @@ internal static class Program
             // Prepare the application.
             var app = builder.Build();
 #if DEBUG
-            app.UseSdkRequestLogging();
+            app.UseSerilogRequestLogging();
 #endif
             app.MapSdkServer();
 

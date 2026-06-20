@@ -95,39 +95,6 @@ public static class ServiceExtensions
         return builder;
     }
 
-#if DEBUG
-    /// <summary>
-    /// Lightweight per-request logging middleware for development. Only
-    /// compiled in DEBUG builds to avoid spamming production logs.
-    /// TODO(magix review): decide whether to keep this here or
-    /// drop it in favour of Serilog.AspNetCore.RequestLoggingMiddleware,
-    /// which already handles the same use-case and is wired up via
-    /// <c>app.UseSerilogRequestLogging()</c>.
-    /// </summary>
-    public static IApplicationBuilder UseSdkRequestLogging(this IApplicationBuilder app)
-    {
-        return app.Use(async (context, next) => {
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                await next();
-            }
-            finally
-            {
-                stopwatch.Stop();
-
-                Log.Information("HTTP {Method} {Path}{QueryString} responded {StatusCode} in {Elapsed}ms",
-                    context.Request.Method,
-                    context.Request.Path,
-                    context.Request.QueryString,
-                    context.Response.StatusCode,
-                    stopwatch.ElapsedMilliseconds);
-            }
-        });
-    }
-#endif
-
     public static IEndpointRouteBuilder MapSdkServer(this IEndpointRouteBuilder app)
     {
         app.MapGet("/", () => Results.Ok("Starlight"));

@@ -48,10 +48,10 @@ public static class WebstaticEndpoints
         [FromServices] ILoggerFactory loggerFactory
     )
     {
-        // ILogger<T> can't be used here because WebstaticEndpoints is a
-        // static class (CS0718). The factory caches by category so this
-        // is still a cheap lookup, just not the ideal pattern. (again)
-        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.WebstaticEndpoints");
+        // A static type can't be a generic type argument (CS0718), so
+        // ILogger<T> isn't an option here. The factory caches by category,
+        // so this lookup is cheap.
+        var logger = loggerFactory.CreateLogger(typeof(WebstaticEndpoints).FullName!);
 
         var resourceRoot = sdkConfig.Webstatic.ResourceRoot;
 

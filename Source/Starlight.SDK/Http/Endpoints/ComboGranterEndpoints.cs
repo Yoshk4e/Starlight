@@ -42,10 +42,10 @@ public static class ComboGranterEndpoints
         CancellationToken ct
     )
     {
-        // ILogger<T> can't be used here because ComboGranterEndpoints is a
-        // static class (CS0718). The factory caches by category so this
-        // is still a cheap lookup, just not the ideal pattern. @magix you probably should check
-        var logger = loggerFactory.CreateLogger("Starlight.SDK.Http.Endpoints.ComboGranterEndpoints");
+        // A static type can't be a generic type argument (CS0718), so
+        // ILogger<T> isn't an option here. The factory caches by category,
+        // so this lookup is cheap.
+        var logger = loggerFactory.CreateLogger(typeof(ComboGranterEndpoints).FullName!);
 
         if (body is null
             || body.AppId is null

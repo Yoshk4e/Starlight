@@ -1,10 +1,39 @@
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Starlight.Ec2b;
 
-public static class Ec2b
+[SuppressMessage("ReSharper", "InconsistentNaming")]
+public static class Ec2bHelper
 {
+    public static byte[] Derive(ReadOnlySpan<byte> ec2b)
+    {
+        if (ec2b.Length != 2076)
+            throw new ArgumentException($"ec2b size must be 2076 (got {ec2b.Length})");
+
+        Span<byte> key = stackalloc byte[16];
+        Span<byte> data = stackalloc byte[2048];
+
+        ec2b.Slice(start: 8, length: 16).CopyTo(key);
+        ec2b.Slice(start: 28, length: 2048).CopyTo(data);
+
+        KeyScramble(key);
+
+        var keyX = Magic.KeyXorpadTable;
+        if (keyX.Length < 16) throw new InvalidOperationException("KeyXorpadTable not initialized or too short.");
+
+        for (var i = 0; i < 16; i++)
+            key[i] ^= keyX[i];
+
+        var xorpad = new byte[4096];
+        GetDecryptVector(key, data, xorpad);
+
+        return xorpad;
+    }
+
     private static void KeyScramble(Span<byte> key)
     {
         Span<byte> roundKeys = stackalloc byte[16 * 11];
@@ -39,48 +68,25 @@ public static class Ec2b
     {
         var val = 0xFFFFFFFFFFFFFFFFUL;
 
-        var qwords = MemoryMarshal.Cast<byte, ulong>(crypt.Slice(start: 0, crypt.Length - crypt.Length % 8));
+        var qwords = MemoryMarshal.Cast<byte, ulong>(crypt[..^(crypt.Length % 8)]);
 
-        for (var i = 0; i < qwords.Length; i++)
-            val ^= qwords[i];
+        foreach (var t in qwords)
+        {
+            val ^= t;
+        }
 
         if (key.Length < 16) throw new ArgumentException("key must be 16 bytes");
 
-        var k0 = BinaryPrimitives.ReadUInt64LittleEndian(key.Slice(start: 0, length: 8));
-        var k1 = BinaryPrimitives.ReadUInt64LittleEndian(key.Slice(start: 8, length: 8));
+        var k0 = BinaryPrimitives.ReadUInt64LittleEndian(key[..8]);
+        var k1 = BinaryPrimitives.ReadUInt64LittleEndian(key[8..16]);
         var seed = k1 ^ 0xCEAC3B5A867837ACUL ^ val ^ k0;
 
         var mt = new Mt19937_64(seed);
 
         // Fill output with 64-bit mt() values
-        var outQ = MemoryMarshal.Cast<byte, ulong>(output.Slice(start: 0, output.Length - output.Length % 8));
+        var outQ = MemoryMarshal.Cast<byte, ulong>(output[..^(output.Length % 8)]);
 
         for (var i = 0; i < outQ.Length; i++)
             outQ[i] = mt.NextULong();
-    }
-
-    public static byte[] Derive(ReadOnlySpan<byte> ec2b)
-    {
-        if (ec2b.Length != 2076)
-            throw new ArgumentException($"ec2b size must be 2076 (got {ec2b.Length})");
-
-        Span<byte> key = stackalloc byte[16];
-        Span<byte> data = stackalloc byte[2048];
-
-        ec2b.Slice(start: 8, length: 16).CopyTo(key);
-        ec2b.Slice(start: 28, length: 2048).CopyTo(data);
-
-        KeyScramble(key);
-
-        var keyX = Magic.KeyXorpadTable;
-        if (keyX.Length < 16) throw new InvalidOperationException("KeyXorpadTable not initialized or too short.");
-
-        for (var i = 0; i < 16; i++)
-            key[i] ^= keyX[i];
-
-        var xorpad = new byte[4096];
-        GetDecryptVector(key, data, xorpad);
-
-        return xorpad;
     }
 }

@@ -2,7 +2,7 @@ using System.Text.Json;
 using Serilog.Events;
 using Starlight.Common;
 using Starlight.DbGate;
-using Starlight.Game;
+using Starlight.Gate;
 using Starlight.SDK;
 
 // ReSharper disable UnusedType.Global
@@ -18,8 +18,9 @@ namespace Starlight;
 public sealed class Config
 {
     public LogEventLevel LogLevel { get; set; } = LogEventLevel.Information;
-    public GateConfig Game { get; set; } = new();
+    public GateConfig Gate { get; set; } = new();
     public DbGateConfig DbGate { get; set; } = new();
+    public DispatchConfig Dispatch { get; set; } = new();
     public SdkConfig Sdk { get; set; } = new();
 
     public static void SaveDefaultConfig()
@@ -28,7 +29,16 @@ public sealed class Config
         // so we skip generating the configuration in these cases.
         if (Env.IsContainerized || File.Exists("config.json")) return;
 
-        var config = JsonSerializer.Serialize(new Config(), Constants.JsonOptions);
+        // Add listed defaults.
+        //
+        // `Microsoft.Extensions.Configuration` will try to append to
+        // any pre-defined lists if we don't do this.
+        var defaults = new Config();
+        defaults.Dispatch.Regions.Add(new DispatchRegionConfig());
+        defaults.Dispatch.ClientCustomConfig.CodeSwitch.AddRange([3201, 3237, 3248, 3628, 4334]);
+        defaults.Dispatch.ClientCustomConfig.CoverSwitch.Add(40);
+
+        var config = JsonSerializer.Serialize(defaults, Constants.JsonOptions);
         File.WriteAllText("config.json", config);
     }
 }

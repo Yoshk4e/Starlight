@@ -8,7 +8,8 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Starlight.DbGate;
 using Starlight.Console;
-using Starlight.Game;
+using Starlight.Game.Protocol.V66;
+using Starlight.Gate;
 using Starlight.Game.Resources;
 using Starlight.Rpc;
 using Starlight.Rpc.Tunnel;
@@ -90,22 +91,21 @@ internal static class Program
 
             builder.Services
                 .AddSerilog()
+                .AddCommands()
                 .AddSingleton<GameData>()
                 .AddSingleton<RpcTransport, DirectRpcTransport>()
                 .AddSingleton<ITunnelBroker, DirectTunnelBroker>()
                 .AddSingleton<ITunnelConnector, DirectTunnelConnector>()
                 .AddSingleton<ITunnelAcceptor, DirectTunnelAcceptor>()
                 .AddSingleton<TunnelClient>()
-                .AddSingleton<TunnelHost>();
-
-            builder.Services
-                .AddCommands()
-                .AddHostedService(s => s.GetRequiredService<RpcTransport>())
-                .AddHostedService<GateServerService>();
+                .AddSingleton<TunnelHost>()
+                .AddHostedService(s => s.GetRequiredService<RpcTransport>());
 
             builder
                 .AddSdkServer()
-                .AddDbGate();
+                .AddDispatchServer()
+                .AddDbGate()
+                .AddGateServer(new V66ProtocolRegistry());
 
             // Prepare the application.
             var app = builder.Build();
@@ -114,7 +114,9 @@ internal static class Program
 #if DEBUG
             app.UseSerilogRequestLogging();
 #endif
-            app.MapSdkServer();
+            app
+                .MapSdkServer()
+                .MapDispatchServer();
 
             StartTime.Stop();
             Log.Information("Done! Finished starting in {Elapsed}ms.", StartTime.ElapsedMilliseconds);

@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
@@ -7,10 +9,11 @@ public sealed class KcpServer : IDisposable
 {
     private readonly UdpClient _socket;
     private readonly IKcpServerHandler _handler;
-    private readonly Dictionary<(int Conv, int Token), KcpConnection> _connections = new();
+    private readonly ConcurrentDictionary<(uint Conv, uint Token), KcpConnection> _connections = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly LogDelegate _logger;
 
-    public KcpServer(string address, int port, IKcpServerHandler handler)
+    public KcpServer(string address, int port, LogDelegate logger, IKcpServerHandler handler)
     {
         var endpoint = new IPEndPoint(
             IPAddress.Parse(address),
@@ -18,6 +21,7 @@ public sealed class KcpServer : IDisposable
 
         _socket = new UdpClient(endpoint);
         _handler = handler;
+        _logger = logger;
     }
 
     public async Task RunAsync(CancellationToken ct = default)
@@ -58,27 +62,74 @@ public sealed class KcpServer : IDisposable
             foreach (var (key, conn) in _connections)
             {
                 conn.Update(now);
-                if (conn.IsDead) _connections.Remove(key);
+                if (conn.IsDead) _connections.TryRemove(key, out _);
             }
         }
     }
 
     private void HandlePacket(byte[] data, IPEndPoint remote)
     {
-        if (data.Length < 8) return;
+        switch (data.Length)
+        {
+            case < 8:
+                return;
+            case 20:
+                HandleHandshake(data, remote);
+                return;
+        }
 
-        var conv = BitConverter.ToInt32(data, startIndex: 0);
-        var token = BitConverter.ToInt32(data, startIndex: 4);
+        var conv = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan()[..4]);
+        var token = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4));
         var key = (conv, token);
 
         if (!_connections.TryGetValue(key, out var conn))
         {
-            conn = new KcpConnection(conv, token, remote, _handler, SendTo);
-            _connections[key] = conn;
-            _handler.OnConnected(conn);
+            _logger(LogLevel.Verbose, "Received packet from {Remote} before establishing connection. (conv={ConvId}, token={Token})",
+                remote, conv, token);
+            return;
         }
 
         conn.Input(data);
+    }
+
+    private void HandleHandshake(byte[] data, IPEndPoint remote)
+    {
+        switch (Handshake.Parse(data))
+        {
+            case ConnectHandshake:
+                uint convId, token;
+
+                do
+                {
+                    convId = (uint)Random.Shared.Next(minValue: 0, int.MaxValue);
+                    token = (uint)Random.Shared.Next(minValue: 0, int.MaxValue);
+                } while (_connections.ContainsKey((convId, token)));
+
+                var conn = new KcpConnection(convId, token, remote, _handler, SendTo, FinalizeDisconnect);
+                _connections.TryAdd((convId, token), conn);
+
+                var reply = new ExchangeHandshake(convId, token);
+                SendTo(reply.ToByteArray(), remote);
+
+                _handler.OnConnected(conn);
+                break;
+            case DisconnectHandshake hs:
+                if (_connections.TryGetValue((hs.ConvId, hs.Token), out var existing) && existing.Remote.Equals(remote))
+                    FinalizeDisconnect(existing, (uint)hs.Reason);
+                break;
+            case ExchangeHandshake:
+                _logger(LogLevel.Verbose, "Received unexpected 'Exchange' type handshake from {Remote}.", remote);
+                return;
+            default:
+                _logger(LogLevel.Verbose, "Received invalid handshake from {Remote}.", remote);
+                return;
+        }
+    }
+
+    private void FinalizeDisconnect(KcpConnection conn, uint reason)
+    {
+        _connections.TryRemove((conn.Conv, conn.Token), out _);
+        _handler.OnDisconnected(conn, reason);
     }
 
     private void SendTo(byte[] data, EndPoint remote)

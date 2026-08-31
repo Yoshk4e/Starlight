@@ -110,7 +110,6 @@ public sealed class KcpConnection
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         if (now - _lastFlushMs < 5) return;
-
         _lastFlushMs = now;
 
         _kcp.Current = now;

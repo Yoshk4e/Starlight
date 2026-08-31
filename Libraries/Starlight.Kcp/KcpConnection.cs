@@ -6,7 +6,6 @@ namespace Starlight.Kcp;
 public sealed class KcpConnection
 {
     private const long DeadLinkGraceMilliseconds = 1000;
-    private const long IdleTimeoutMilliseconds = 30000;
 
     private readonly Internals.Kcp _kcp;
 
@@ -19,10 +18,10 @@ public sealed class KcpConnection
     private readonly IKcpServerHandler _handler;
     private readonly Action<byte[], EndPoint> _send;
     private readonly Action<KcpConnection, uint> _onDisconnect;
+    private readonly long _startTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     private uint? _lingerReason;
     private long? _deadLinkSince;
-    private long _lastReceiveAt;
     private bool _isDead;
 
     public IPEndPoint Remote { get; }
@@ -71,7 +70,6 @@ public sealed class KcpConnection
         _onDisconnect = onDisconnect;
         _kcp = new Internals.Kcp(conv, token, stream: false, new WriterAdapter(this));
         _kcp.SetNodelay(nodelay: true, interval: 10, resend: 2, nc: true);
-        _lastReceiveAt = Environment.TickCount64;
     }
 
     public void Send(byte[] data)
@@ -108,7 +106,7 @@ public sealed class KcpConnection
     private void FlushNow()
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        _kcp.Update(now);
+        _kcp.Update(now - _startTs);
         _kcp.Flush();
     }
 
@@ -126,13 +124,7 @@ public sealed class KcpConnection
     /// Use when a packet sent just before teardown must be guaranteed to arrive, since
     /// <see cref="Disconnect(uint)"/> drops anything still in flight.
     /// </summary>
-    public void DisconnectAfterFlush(uint reason = (uint)DisconnectReason.ServerKick)
-    {
-        lock (_gate)
-        {
-            _lingerReason = reason;
-        }
-    }
+    public void DisconnectAfterFlush(uint reason = (uint)DisconnectReason.ServerKick) => _lingerReason = reason;
 
     internal void Input(byte[] data)
     {
@@ -142,8 +134,6 @@ public sealed class KcpConnection
         {
             var result = _kcp.Input(new ByteCursor(data));
             if (result.IsFailure) return;
-
-            _lastReceiveAt = Environment.TickCount64;
 
             // Input only queues the ACKs for what just arrived; nothing sends them.
             FlushNow();
@@ -167,19 +157,13 @@ public sealed class KcpConnection
 
     internal void Update(long timestamp)
     {
-        var idleNow = Environment.TickCount64;
         uint? drained = null;
         var disconnected = false;
 
         lock (_gate)
         {
-            _kcp.Update(timestamp);
-
-            if (!_isDead && idleNow - _lastReceiveAt >= IdleTimeoutMilliseconds)
-            {
-                _isDead = true;
-                disconnected = true;
-            } else if (!_isDead && _kcp.State == -1)
+            _kcp.Update(timestamp - _startTs);
+            if (_kcp.State == -1)
             {
                 var hasDeadSegment = _kcp.SndBuf.Any(segment => segment.Xmit >= _kcp.DeadLink);
 
@@ -220,7 +204,7 @@ public sealed class KcpConnection
         }
 
         if (disconnected)
-            _onDisconnect(this, (uint)DisconnectReason.ServerKillClient);
+            _handler.OnDisconnected(this, (uint)DisconnectReason.ServerKillClient);
     }
 
     private sealed class WriterAdapter(KcpConnection conn) : IWriter

@@ -127,7 +127,7 @@ internal static class Program
                 .AddSingleton<AbilityInitializer>()
                 .AddSingleton<WorldAbilityRouter>()
                 .AddSingleton<IAbilityScopeResolver>(services => services.GetRequiredService<WorldAbilityRouter>())
-                .AddSingleton<IAbilityForwarder>(services => services.GetRequiredService<WorldAbilityRouter>())
+                .AddSingleton<IInvokeForwarder>(services => services.GetRequiredService<WorldAbilityRouter>())
                 .AddSingleton<GuidManager>(_ => new GuidManager(serverId: 1))
                 .AddHostedService(s => s.GetRequiredService<GameData>())
                 .AddSingleton<WorldManager>()

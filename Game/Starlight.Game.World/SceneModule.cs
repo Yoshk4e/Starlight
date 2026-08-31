@@ -1,3 +1,4 @@
+using Serilog;
 using Starlight.Game.Ability;
 using Starlight.Game.Modules;
 using Starlight.Game.Player;
@@ -7,7 +8,7 @@ using Starlight.Rpc.Proto;
 
 namespace Starlight.Game.World;
 
-public sealed class SceneModule(IPlayer player) : IModule
+public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IModule
 {
     #region Beach Simulator
 
@@ -296,6 +297,121 @@ public sealed class SceneModule(IPlayer player) : IModule
         };
 
         yield return new EnterSceneDoneRsp { EnterSceneToken = msg.EnterSceneToken };
+    }
+
+    [Opcode]
+    public async Task OnCombatInvocations(CombatInvocationsNotify notify)
+    {
+        foreach (var invoke in notify.InvokeList)
+        {
+            switch (invoke.ArgumentType)
+            {
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_ENTITY_MOVE:
+                    HandleEntityMove(invoke.CombatData);
+                    break;
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_EVT_BEING_HIT:
+                    HandleBeingHit(invoke.CombatData);
+                    break;
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_SET_ATTACK_TARGET:
+                    HandleSetAttackTarget(invoke.CombatData);
+                    break;
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_ANIMATOR_PARAMETER_CHANGED:
+                    HandleAnimatorParameter(invoke.CombatData);
+                    break;
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_BEING_HEALED_NTF:
+                    HandleBeingHealed(invoke.CombatData);
+                    break;
+                case CombatTypeArgument.COMBAT_TYPE_ARGUMENT_SKILL_ANCHOR_POSITION_NTF:
+                    HandleSkillAnchorPosition(invoke.CombatData);
+                    break;
+                default:
+                    Log.Debug("Unhandled combat invoke: ArgumentType={ArgumentType}", invoke.ArgumentType);
+                    break;
+            }
+        }
+
+        await ForwardCombat(notify.InvokeList);
+    }
+
+    private void HandleEntityMove(Google.Protobuf.ByteString data)
+    {
+        if (!TryDecode(data, out EntityMoveInfo move) || move.MotionInfo is not {} incoming)
+            return;
+
+        var entity = _teamEntities.Values.FirstOrDefault(a => a.EntityId == move.EntityId);
+
+        if (entity?.Info.MotionInfo is not {} motion)
+            return;
+
+        motion.Pos = incoming.Pos;
+        motion.Rot = incoming.Rot;
+        motion.Speed = incoming.Speed;
+        motion.RefPos = incoming.RefPos;
+        motion.State = incoming.State;
+        motion.SceneTime = incoming.SceneTime;
+    }
+
+    private void HandleBeingHit(Google.Protobuf.ByteString data)
+    {
+        // TODO: Handle EvtBeingHitInfo.
+    }
+
+    private void HandleSetAttackTarget(Google.Protobuf.ByteString data)
+    {
+        // TODO: Handle EvtSetAttackTargetInfo.
+    }
+
+    private void HandleAnimatorParameter(Google.Protobuf.ByteString data)
+    {
+        // TODO: Handle EvtAnimatorParameterInfo.
+    }
+
+    private void HandleBeingHealed(Google.Protobuf.ByteString data)
+    {
+        // TODO: Handle EvtBeingHealedNotify.
+    }
+
+    private void HandleSkillAnchorPosition(Google.Protobuf.ByteString data)
+    {
+        // TODO: Handle EvtSyncSkillAnchorPosition.
+    }
+
+    private async Task ForwardCombat(List<CombatInvokeEntry> invokes)
+    {
+        foreach (var type in invokes
+                     .Select(invoke => invoke.ForwardType)
+                     .Where(type => type is not ForwardType.FORWARD_TYPE_LOCAL and
+                         not ForwardType.FORWARD_TYPE_ONLY_SERVER)
+                     .Distinct())
+        {
+            await forwarder.Forward(
+                player,
+                type,
+                new CombatInvocationsNotify {
+                    InvokeList = [.. invokes.Where(invoke => invoke.ForwardType == type)]
+                },
+                // TODO: CombatInvokeEntry carries no forward_peer. With co-op we'll need to map
+                // the targeted peer here for FORWARD_TYPE_TO_PEER / FORWARD_TYPE_TO_PEERS.
+                forwardPeer: 0);
+        }
+    }
+
+    private static bool TryDecode<T>(Google.Protobuf.ByteString data, out T message)
+        where T : class, ISelfSerializable<T>, new()
+    {
+        message = new T();
+
+        try
+        {
+            using var input = data.CreateCodedInput();
+            T.Serializer.Deserialize(message, input);
+            return true;
+        }
+        catch (Google.Protobuf.InvalidProtocolBufferException)
+        {
+            message = null!;
+            return false;
+        }
     }
 
     [Opcode]

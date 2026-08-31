@@ -20,7 +20,7 @@ public interface IAbilityScopeResolver
     bool TryResolve(IPlayer player, out AbilityScopeContext context);
 }
 
-public interface IAbilityForwarder
+public interface IInvokeForwarder
 {
     Task Forward(IPlayer sender, ForwardType type, IMessage message, uint forwardPeer);
 }

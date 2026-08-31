@@ -643,7 +643,7 @@ public sealed class AvatarEquipTests
                     router));
 
             registry.AddModule<SceneModule>((_, player) =>
-                new SceneModule(player));
+                new SceneModule(player, router));
         }
 
         registry.Build();

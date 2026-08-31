@@ -14,7 +14,7 @@ public sealed class AbilityModule(
     GameData data,
     ProtocolRegistry protocol,
     IAbilityScopeResolver scopes,
-    IAbilityForwarder forwarder
+    IInvokeForwarder forwarder
 ) : IModule
 {
     private const int RuntimeInvokeLimit = 49;

@@ -5,7 +5,7 @@ using Starlight.Protocol;
 
 namespace Starlight.Game.World;
 
-public sealed class WorldAbilityRouter : IAbilityScopeResolver, IAbilityForwarder
+public sealed class WorldAbilityRouter : IAbilityScopeResolver, IInvokeForwarder
 {
     public bool TryResolve(IPlayer player, out AbilityScopeContext context)
     {

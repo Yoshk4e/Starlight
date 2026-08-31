@@ -58,12 +58,13 @@ public sealed class SceneModule(IPlayer player) : IModule
 
         foreach (var avatar in team.Avatars)
         {
+            var isIncomingCurrent = avatar.Guid == team.CurrentAvatarGuid;
+
             if (!_teamEntities.TryGetValue(avatar.Guid, out var entity))
             {
-                var isIncomingCurrent = avatar.Guid == team.CurrentAvatarGuid;
-                var position = isIncomingCurrent ? outgoingPos  : SpawnPosition;
-                var rotation = isIncomingCurrent ? outgoingRot  : new Vector();
-                var refPos = isIncomingCurrent ? outgoingRef  : new Vector();
+                var position = isIncomingCurrent ? outgoingPos : SpawnPosition;
+                var rotation = isIncomingCurrent ? outgoingRot : new Vector();
+                var refPos = isIncomingCurrent ? outgoingRef : new Vector();
 
                 entity = AvatarEntity.Create(
                     module.World,
@@ -73,11 +74,15 @@ public sealed class SceneModule(IPlayer player) : IModule
                     position,
                     rotation,
                     refPos);
+            } else if (isIncomingCurrent && entity.Info.MotionInfo is {} motion)
+            {
+                motion.Pos = outgoingPos;
+                motion.Rot = outgoingRot;
+                motion.RefPos = outgoingRef;
             }
 
-
-            if (entity.Info.MotionInfo is { } motion)
-                motion.State = MotionState.MOTION_STATE_STANDBY;
+            if (entity.Info.MotionInfo is {} standbyMotion)
+                standbyMotion.State = MotionState.MOTION_STATE_STANDBY;
 
             nextEntities.Add(avatar.Guid, entity);
 
@@ -123,7 +128,7 @@ public sealed class SceneModule(IPlayer player) : IModule
         nextEntities.TryGetValue(team.CurrentAvatarGuid, out var current);
         var currentChanged = _currentAvatarGuid != team.CurrentAvatarGuid;
 
-        if (current is not null && current.Info.MotionInfo is { } curMotion)
+        if (current is not null && current.Info.MotionInfo is {} curMotion)
             _lastCurrentMotion = curMotion;
 
         _teamEntities.Clear();

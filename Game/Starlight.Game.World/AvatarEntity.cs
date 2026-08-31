@@ -10,7 +10,15 @@ public sealed record AvatarEntity(SceneEntityInfo Info, uint WeaponEntityId)
     public uint EntityId => Info.EntityId;
 
     /// <summary>Spawns <paramref name="avatar"/> into <paramref name="world"/> standing at <paramref name="position"/>.</summary>
-    public static AvatarEntity Create(World world, uint uid, uint peerId, Avatar avatar, Vector position)
+    public static AvatarEntity Create(
+        World world,
+        uint uid,
+        uint peerId,
+        Avatar avatar,
+        Vector position,
+        Vector? rotation = null,
+        Vector? refPos = null
+    )
     {
         var weaponEntityId = world.NextEntityId(ProtEntityType.PROT_ENTITY_TYPE_WEAPON);
 
@@ -43,9 +51,9 @@ public sealed record AvatarEntity(SceneEntityInfo Info, uint WeaponEntityId)
             LifeState = Alive,
             MotionInfo = new MotionInfo {
                 Pos = position,
-                Rot = new Vector(),
+                Rot = rotation ?? new Vector(),
                 Speed = new Vector(),
-                RefPos = new Vector(),
+                RefPos = refPos ?? new Vector(),
                 State = MotionState.MOTION_STATE_STANDBY
             },
             EntityClientData = new EntityClientData(),

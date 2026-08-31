@@ -21,6 +21,8 @@ public sealed class SceneModule(IPlayer player) : IModule
     private readonly Dictionary<ulong, AvatarEntity> _teamEntities = [];
     private ulong _currentAvatarGuid;
 
+    private MotionInfo? _lastCurrentMotion;
+
     #endregion
 
     [Lifecycle(LifecycleEvent.PlayerLogin)]
@@ -49,17 +51,33 @@ public sealed class SceneModule(IPlayer player) : IModule
         var notification = new SceneTeamUpdateNotify();
         var nextEntities = new Dictionary<ulong, AvatarEntity>();
 
+        var outgoing = _teamEntities.GetValueOrDefault(_currentAvatarGuid);
+        var outgoingPos = outgoing?.Info.MotionInfo?.Pos ?? _lastCurrentMotion?.Pos ?? SpawnPosition;
+        var outgoingRot = outgoing?.Info.MotionInfo?.Rot ?? _lastCurrentMotion?.Rot ?? new Vector();
+        var outgoingRef = outgoing?.Info.MotionInfo?.RefPos ?? _lastCurrentMotion?.RefPos ?? new Vector();
+
         foreach (var avatar in team.Avatars)
         {
             if (!_teamEntities.TryGetValue(avatar.Guid, out var entity))
             {
+                var isIncomingCurrent = avatar.Guid == team.CurrentAvatarGuid;
+                var position = isIncomingCurrent ? outgoingPos  : SpawnPosition;
+                var rotation = isIncomingCurrent ? outgoingRot  : new Vector();
+                var refPos = isIncomingCurrent ? outgoingRef  : new Vector();
+
                 entity = AvatarEntity.Create(
                     module.World,
                     player.Uid,
                     module.PeerId,
                     avatar,
-                    SpawnPosition);
+                    position,
+                    rotation,
+                    refPos);
             }
+
+
+            if (entity.Info.MotionInfo is { } motion)
+                motion.State = MotionState.MOTION_STATE_STANDBY;
 
             nextEntities.Add(avatar.Guid, entity);
 
@@ -104,6 +122,9 @@ public sealed class SceneModule(IPlayer player) : IModule
         _teamEntities.TryGetValue(_currentAvatarGuid, out var previous);
         nextEntities.TryGetValue(team.CurrentAvatarGuid, out var current);
         var currentChanged = _currentAvatarGuid != team.CurrentAvatarGuid;
+
+        if (current is not null && current.Info.MotionInfo is { } curMotion)
+            _lastCurrentMotion = curMotion;
 
         _teamEntities.Clear();
 
@@ -199,6 +220,7 @@ public sealed class SceneModule(IPlayer player) : IModule
         _spawned.Clear();
         _teamEntities.Clear();
         _currentAvatarGuid = team.CurrentAvatarGuid;
+        _lastCurrentMotion = null;
 
         foreach (var avatar in team.Avatars)
         {
@@ -225,6 +247,7 @@ public sealed class SceneModule(IPlayer player) : IModule
             {
                 enterInfo.CurAvatarEntityId = entity.EntityId;
                 _spawned.Add(entity.Info);
+                _lastCurrentMotion = entity.Info.MotionInfo;
             }
 
             enterInfo.AvatarEnterInfo.Add(new AvatarEnterSceneInfo {

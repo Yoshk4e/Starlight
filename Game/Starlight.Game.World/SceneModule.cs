@@ -330,7 +330,16 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
             }
         }
 
-        await ForwardCombat(notify.InvokeList);
+        foreach (var group in notify.InvokeList.GroupBy(invoke => invoke.ForwardType))
+        {
+            // TODO: CombatInvokeEntry carries no forward_peer. With co-op we'll need to
+            // map the targeted peer here for FORWARD_TYPE_TO_PEER / FORWARD_TYPE_TO_PEERS.
+            await forwarder.Forward(
+                player,
+                group.Key,
+                new CombatInvocationsNotify { InvokeList = [.. group] },
+                forwardPeer: 0);
+        }
     }
 
     private void HandleEntityMove(Google.Protobuf.ByteString data)
@@ -374,26 +383,6 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
     private void HandleSkillAnchorPosition(Google.Protobuf.ByteString data)
     {
         // TODO: Handle EvtSyncSkillAnchorPosition.
-    }
-
-    private async Task ForwardCombat(List<CombatInvokeEntry> invokes)
-    {
-        foreach (var type in invokes
-                     .Select(invoke => invoke.ForwardType)
-                     .Where(type => type is not ForwardType.FORWARD_TYPE_LOCAL and
-                         not ForwardType.FORWARD_TYPE_ONLY_SERVER)
-                     .Distinct())
-        {
-            await forwarder.Forward(
-                player,
-                type,
-                new CombatInvocationsNotify {
-                    InvokeList = [.. invokes.Where(invoke => invoke.ForwardType == type)]
-                },
-                // TODO: CombatInvokeEntry carries no forward_peer. With co-op we'll need to map
-                // the targeted peer here for FORWARD_TYPE_TO_PEER / FORWARD_TYPE_TO_PEERS.
-                forwardPeer: 0);
-        }
     }
 
     private static bool TryDecode<T>(Google.Protobuf.ByteString data, out T message)

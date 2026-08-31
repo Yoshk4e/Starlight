@@ -24,7 +24,6 @@ public sealed class KcpConnection
     private long? _deadLinkSince;
     private long _lastReceiveAt;
     private bool _isDead;
-    private long _lastFlushMs;
 
     public IPEndPoint Remote { get; }
     public uint Conv => _kcp.Conv;
@@ -109,11 +108,7 @@ public sealed class KcpConnection
     private void FlushNow()
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        if (now - _lastFlushMs < 5) return;
-
-        _lastFlushMs = now;
-
-        _kcp.Current = now;
+        _kcp.Update(now);
         _kcp.Flush();
     }
 

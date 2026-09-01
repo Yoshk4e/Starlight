@@ -74,7 +74,7 @@ public sealed class KcpServer : IDisposable
 
         while (await timer.WaitForNextTickAsync(ct))
         {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var now = Environment.TickCount64;
 
             foreach (var conn in _connections.Values)
             {

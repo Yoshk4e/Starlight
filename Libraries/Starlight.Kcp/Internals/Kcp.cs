@@ -182,6 +182,8 @@ public sealed class Kcp
 
     private static long TimeDiff(long later, long earlier) => later - earlier;
     private static int TimeDiff(int later, int earlier) => later - earlier;
+    private static int TimeDiff32(int later, int earlier) => unchecked(later - earlier);
+    private int Clock32 => unchecked((int)Current);
 
     private void ParseUna(long una)
     {
@@ -420,7 +422,7 @@ public sealed class Kcp
             switch (cmd)
             {
                 case KCP_CMD_ACK: {
-                    var rtt = TimeDiff(Current, ts);
+                    var rtt = TimeDiff32(Clock32, ts);
 
                     if (rtt >= 0)
                     {
@@ -552,10 +554,10 @@ public sealed class Kcp
             if (ProbeWait == 0)
             {
                 ProbeWait = KCP_PROBE_INIT;
-                TsProbe = unchecked((int)(Current + ProbeWait));
-            } else
+                TsProbe = unchecked(Clock32 + ProbeWait);
+            } else if (TimeDiff32(Clock32, TsProbe) >= 0)
             {
-                if (TimeDiff(Current, TsProbe) >= 0 && ProbeWait < KCP_PROBE_INIT)
+                if (ProbeWait < KCP_PROBE_INIT)
                 {
                     ProbeWait = KCP_PROBE_INIT;
                 }
@@ -567,7 +569,7 @@ public sealed class Kcp
                     ProbeWait = KCP_PROBE_LIMIT;
                 }
 
-                TsProbe = unchecked((int)(Current + ProbeWait));
+                TsProbe = unchecked(Clock32 + ProbeWait);
                 Probe |= KCP_ASK_SEND;
             }
         } else
@@ -670,11 +672,11 @@ public sealed class Kcp
             newSegment.Token = Token;
             newSegment.Cmd = KCP_CMD_PUSH;
             newSegment.Wnd = segment.Wnd;
-            newSegment.Ts = unchecked((int)Current);
+            newSegment.Ts = Clock32;
             newSegment.Sn = SndNxt;
             SndNxt += 1;
             newSegment.Una = RcvNxt;
-            newSegment.ResendTs = unchecked((int)Current);
+            newSegment.ResendTs = Clock32;
             newSegment.Rto = unchecked((int)RxRto);
             newSegment.FastAck = 0;
             newSegment.Xmit = 0;
@@ -702,8 +704,8 @@ public sealed class Kcp
                 needSend = true;
                 sndSegment.Xmit += 1;
                 sndSegment.Rto = unchecked((int)RxRto);
-                sndSegment.ResendTs = unchecked((int)(Current + sndSegment.Rto + rtomin));
-            } else if (TimeDiff(Current, sndSegment.ResendTs) >= 0)
+                sndSegment.ResendTs = unchecked((int)(Clock32 + sndSegment.Rto + rtomin));
+            } else if (TimeDiff32(Clock32, sndSegment.ResendTs) >= 0)
             {
                 needSend = true;
                 sndSegment.Xmit += 1;
@@ -717,20 +719,20 @@ public sealed class Kcp
                     sndSegment.Rto += unchecked((int)(RxRto / 2));
                 }
 
-                sndSegment.ResendTs = unchecked((int)(Current + sndSegment.Rto));
+                sndSegment.ResendTs = unchecked(Clock32 + sndSegment.Rto);
                 lost = true;
             } else if (sndSegment.FastAck >= resent)
             {
                 needSend = true;
                 sndSegment.Xmit += 1;
                 sndSegment.FastAck = 0;
-                sndSegment.ResendTs = unchecked((int)(Current + sndSegment.Rto));
+                sndSegment.ResendTs = unchecked(Clock32 + sndSegment.Rto);
                 change += 1;
             }
 
             if (needSend)
             {
-                sndSegment.Ts = unchecked((int)Current);
+                sndSegment.Ts = Clock32;
                 sndSegment.Wnd = segment.Wnd;
                 sndSegment.Una = RcvNxt;
 

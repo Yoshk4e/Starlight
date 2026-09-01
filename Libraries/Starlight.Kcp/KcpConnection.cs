@@ -18,7 +18,6 @@ public sealed class KcpConnection
     private readonly IKcpServerHandler _handler;
     private readonly Action<byte[], EndPoint> _send;
     private readonly Action<KcpConnection, uint> _onDisconnect;
-    private readonly long _startTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     private uint? _lingerReason;
     private long? _deadLinkSince;
@@ -105,8 +104,7 @@ public sealed class KcpConnection
     /// clock. Flush refuses until the first Update has run; the tick covers that window.
     private void FlushNow()
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        _kcp.Update(now - _startTs);
+        _kcp.Update(Environment.TickCount64);
         _kcp.Flush();
     }
 
@@ -162,7 +160,7 @@ public sealed class KcpConnection
 
         lock (_gate)
         {
-            _kcp.Update(timestamp - _startTs);
+            _kcp.Update(timestamp);
             if (_kcp.State == -1)
             {
                 var hasDeadSegment = _kcp.SndBuf.Any(segment => segment.Xmit >= _kcp.DeadLink);

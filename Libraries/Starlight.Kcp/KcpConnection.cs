@@ -161,6 +161,7 @@ public sealed class KcpConnection
         lock (_gate)
         {
             _kcp.Update(timestamp);
+
             if (_kcp.State == -1)
             {
                 var hasDeadSegment = _kcp.SndBuf.Any(segment => segment.Xmit >= _kcp.DeadLink);

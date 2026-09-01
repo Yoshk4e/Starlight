@@ -20,6 +20,7 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
 
     private readonly List<SceneEntityInfo> _spawned = [];
     private readonly Dictionary<ulong, AvatarEntity> _teamEntities = [];
+    private readonly List<ulong> _teamGuids = [];
     private ulong _currentAvatarGuid;
 
     private MotionInfo? _lastCurrentMotion;
@@ -43,19 +44,27 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
         var module = player.Module<WorldModule>();
         var scene = module.Scene;
 
+        var pendingMove = player.Module<TeamModule>().ConsumePendingSwitchMove();
+
         if (scene is null)
             yield break;
 
         var abilities = player.Module<AbilityModule>();
         var inventory = player.Module<InventoryModule>();
         var team = player.Module<TeamModule>().Current;
-        var notification = new SceneTeamUpdateNotify();
         var nextEntities = new Dictionary<ulong, AvatarEntity>();
+        var currentChanged = _currentAvatarGuid != team.CurrentAvatarGuid;
+        var isTeamEdit = !_teamGuids.SequenceEqual(team.Avatars.Select(avatar => avatar.Guid));
 
         var outgoing = _teamEntities.GetValueOrDefault(_currentAvatarGuid);
-        var outgoingPos = outgoing?.Info.MotionInfo?.Pos ?? _lastCurrentMotion?.Pos ?? SpawnPosition;
+        var switchMove = currentChanged ? pendingMove : null;
+        var outgoingPos = switchMove ?? outgoing?.Info.MotionInfo?.Pos ?? _lastCurrentMotion?.Pos ?? SpawnPosition;
         var outgoingRot = outgoing?.Info.MotionInfo?.Rot ?? _lastCurrentMotion?.Rot ?? new Vector();
         var outgoingRef = outgoing?.Info.MotionInfo?.RefPos ?? _lastCurrentMotion?.RefPos ?? new Vector();
+        if (currentChanged && outgoing?.Info.MotionInfo is {} outgoingMotion)
+            outgoingMotion.State = MotionState.MOTION_STATE_STANDBY;
+
+        SceneTeamUpdateNotify? notification = isTeamEdit ? new SceneTeamUpdateNotify() : null;
 
         foreach (var avatar in team.Avatars)
         {
@@ -80,10 +89,8 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
                 motion.Pos = outgoingPos;
                 motion.Rot = outgoingRot;
                 motion.RefPos = outgoingRef;
+                motion.Speed = new Vector();
             }
-
-            if (entity.Info.MotionInfo is {} standbyMotion)
-                standbyMotion.State = MotionState.MOTION_STATE_STANDBY;
 
             nextEntities.Add(avatar.Guid, entity);
 
@@ -107,9 +114,7 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
             }
             entity.Info.EntityAuthorityInfo!.AbilityInfo = AbilityProtocol.ToSyncState(avatarAbilities);
 
-            var isCurrent = avatar.Guid == team.CurrentAvatarGuid;
-
-            notification.SceneTeamAvatarList.Add(new SceneTeamAvatar {
+            notification?.SceneTeamAvatarList.Add(new SceneTeamAvatar {
                 PlayerUid = player.Uid,
                 SceneId = scene.Id,
                 AvatarGuid = avatar.Guid,
@@ -120,14 +125,13 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
                 AvatarAbilityInfo = AbilityProtocol.ToSyncState(avatarAbilities),
                 WeaponAbilityInfo = AbilityProtocol.ToSyncState(weaponAbilities),
                 SceneEntityInfo = entity.Info,
-                IsOnScene = isCurrent,
-                IsPlayerCurAvatar = isCurrent
+                IsOnScene = isIncomingCurrent,
+                IsPlayerCurAvatar = isIncomingCurrent
             });
         }
 
         _teamEntities.TryGetValue(_currentAvatarGuid, out var previous);
         nextEntities.TryGetValue(team.CurrentAvatarGuid, out var current);
-        var currentChanged = _currentAvatarGuid != team.CurrentAvatarGuid;
 
         if (current is not null && current.Info.MotionInfo is {} curMotion)
             _lastCurrentMotion = curMotion;
@@ -140,8 +144,11 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
         }
 
         _currentAvatarGuid = team.CurrentAvatarGuid;
+        _teamGuids.Clear();
+        _teamGuids.AddRange(team.Avatars.Select(avatar => avatar.Guid));
 
-        yield return notification;
+        if (notification is not null)
+            yield return notification;
 
         if (currentChanged && previous is not null)
         {
@@ -225,6 +232,8 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
 
         _spawned.Clear();
         _teamEntities.Clear();
+        _teamGuids.Clear();
+        _teamGuids.AddRange(team.Avatars.Select(avatar => avatar.Guid));
         _currentAvatarGuid = team.CurrentAvatarGuid;
         _lastCurrentMotion = null;
 
@@ -356,8 +365,14 @@ public sealed class SceneModule(IPlayer player, IInvokeForwarder forwarder) : IM
         motion.Rot = incoming.Rot;
         motion.Speed = incoming.Speed;
         motion.RefPos = incoming.RefPos;
+        motion.RefId = incoming.RefId;
+        motion.Params.Clear();
+        motion.Params.AddRange(incoming.Params);
         motion.State = incoming.State;
         motion.SceneTime = incoming.SceneTime;
+        motion.IntervalVelocity = incoming.IntervalVelocity;
+        entity.Info.LastMoveSceneTimeMs = move.SceneTime;
+        entity.Info.LastMoveReliableSeq = move.ReliableSeq;
     }
 
     private void HandleBeingHit(Google.Protobuf.ByteString data)

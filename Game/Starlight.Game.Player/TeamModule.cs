@@ -15,6 +15,8 @@ public sealed class TeamModule(IPlayer player) : IModule
     private uint _currentTeamId;
     private bool _loaded;
 
+    public Vector? PendingSwitchMove { get; private set; }
+
     public PlayerTeam Current
     {
         get
@@ -173,6 +175,7 @@ public sealed class TeamModule(IPlayer player) : IModule
             changed = _currentTeamId != team.Id;
             _currentTeamId = team.Id;
             player.State.CurrentAvatarTeamId = team.Id;
+            PendingSwitchMove = null;
         }
 
         if (changed)
@@ -213,11 +216,23 @@ public sealed class TeamModule(IPlayer player) : IModule
 
             team.CurrentAvatarGuid = msg.Guid;
             _teamState[team.Id].CurrentAvatarGuid = msg.Guid;
+
+            PendingSwitchMove = msg.IsMove && IsUsableMovePos(msg.MovePos) ? msg.MovePos : null;
         }
 
         await player.Emit(LifecycleEvent.PlayerTeamChanged);
         return response;
     }
+
+    public Vector? ConsumePendingSwitchMove()
+    {
+        var move = PendingSwitchMove;
+        PendingSwitchMove = null;
+        return move;
+    }
+
+    private static bool IsUsableMovePos(Vector? pos) =>
+        pos is not null && (pos.X != 0 || pos.Y != 0 || pos.Z != 0);
 
     internal void Initialize(Avatar avatar)
     {

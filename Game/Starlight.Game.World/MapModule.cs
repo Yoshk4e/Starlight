@@ -8,7 +8,6 @@ namespace Starlight.Game.World;
 
 public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
 {
-    // GC: IntStream.range(1, 1000) - the ceiling itself is excluded.
     private const uint AreaIdCeiling = 999;
 
     private readonly Dictionary<uint, NetSceneUnlocks> _unlocks = [];
@@ -28,10 +27,7 @@ public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
             IsRelogin = msg.IsRelogin,
             UnlockedPointList = [.. points],
             UnhidePointList = [.. points],
-
-            // GC hardcodes areas 1-8 here; the real unlock set is served through
-            // GetSceneAreaRsp and the unlock notifies.
-            UnlockAreaList = [1, 2, 3, 4, 5, 6, 7, 8]
+            UnlockAreaList = [1, 2, 3, 4, 5, 6, 7, 8] //hardcoded this way in GC too.
         };
     }
 

@@ -1,9 +1,7 @@
 using Starlight.Game.Modules;
 using Starlight.Game.Player;
-using Starlight.Protocol;
 
 namespace Starlight.Game.World;
-
 
 public sealed class StaminaManager(IPlayer player) : IModule
 {

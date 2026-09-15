@@ -1,6 +1,7 @@
 using Starlight.Rpc.Proto;
 
 namespace Starlight.Game.Player;
+
 public enum CheatToggle
 {
     GodMode
@@ -34,7 +35,7 @@ public sealed class CheatToggles
 
     public void Load(NetPlayerState state)
     {
-        if (state.Cheats is not { } cheats)
+        if (state.Cheats is not {} cheats)
             return;
 
         if (cheats.HasGodMode)

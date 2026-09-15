@@ -13,15 +13,15 @@ public sealed class PlayerPropsTests
     {
         var snapshot = new PlayerProps().Snapshot().ToDictionary(entry => entry.Key, entry => entry.Value);
 
-        Assert.Equal(1, snapshot[(uint)PlayerProperty.IsFlyable].Val);
-        Assert.Equal(1, snapshot[(uint)PlayerProperty.IsTransferable].Val);
-        Assert.Equal(1, snapshot[(uint)PlayerProperty.IsDiveable].Val);
-        Assert.Equal(60, snapshot[(uint)PlayerProperty.Level].Val);
-        Assert.Equal(60, snapshot[(uint)PlayerProperty.PlayerLevel].Val);
-        Assert.Equal(0, snapshot[(uint)PlayerProperty.PlayerExp].Val);
-        Assert.Equal(24_000, snapshot[(uint)PlayerProperty.MaxStamina].Val);
-        Assert.Equal(24_000, snapshot[(uint)PlayerProperty.CurPersistStamina].Val);
-        Assert.Equal(1, snapshot[(uint)PlayerProperty.PlayerWorldLevel].Val);
+        Assert.Equal(expected: 1, snapshot[(uint)PlayerProperty.IsFlyable].Val);
+        Assert.Equal(expected: 1, snapshot[(uint)PlayerProperty.IsTransferable].Val);
+        Assert.Equal(expected: 1, snapshot[(uint)PlayerProperty.IsDiveable].Val);
+        Assert.Equal(expected: 60, snapshot[(uint)PlayerProperty.Level].Val);
+        Assert.Equal(expected: 60, snapshot[(uint)PlayerProperty.PlayerLevel].Val);
+        Assert.Equal(expected: 0, snapshot[(uint)PlayerProperty.PlayerExp].Val);
+        Assert.Equal(expected: 24_000, snapshot[(uint)PlayerProperty.MaxStamina].Val);
+        Assert.Equal(expected: 24_000, snapshot[(uint)PlayerProperty.CurPersistStamina].Val);
+        Assert.Equal(expected: 1, snapshot[(uint)PlayerProperty.PlayerWorldLevel].Val);
     }
 
     [Fact]
@@ -29,8 +29,8 @@ public sealed class PlayerPropsTests
     {
         var props = new PlayerProps();
 
-        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, 5));
-        Assert.Equal(5, props.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, value: 5));
+        Assert.Equal(expected: 5, props.Get(PlayerProperty.PlayerWorldLevel));
     }
 
     [Theory]
@@ -53,14 +53,14 @@ public sealed class PlayerPropsTests
     {
         var props = new PlayerProps();
 
-        Assert.Null(props.TrySet(PlayerProperty.MaxStamina, 10_000));
-        Assert.Null(props.TrySet(PlayerProperty.CurPersistStamina, 10_000));
-        Assert.NotNull(props.TrySet(PlayerProperty.CurPersistStamina, 10_001));
+        Assert.Null(props.TrySet(PlayerProperty.MaxStamina, value: 10_000));
+        Assert.Null(props.TrySet(PlayerProperty.CurPersistStamina, value: 10_000));
+        Assert.NotNull(props.TrySet(PlayerProperty.CurPersistStamina, value: 10_001));
     }
 
     [Fact]
     public void TrySet_NonePropertyIsRejected()
-        => Assert.NotNull(new PlayerProps().TrySet(PlayerProperty.None, 1));
+        => Assert.NotNull(new PlayerProps().TrySet(PlayerProperty.None, value: 1));
 
     [Fact]
     public void RoundTrip_SurvivesStateClone()
@@ -68,16 +68,16 @@ public sealed class PlayerPropsTests
         var state = new NetPlayerState();
         var props = PlayerProps.FromState(state);
 
-        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, 5));
-        Assert.Null(props.TrySet(PlayerProperty.PlayerScoin, 12_345));
+        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, value: 5));
+        Assert.Null(props.TrySet(PlayerProperty.PlayerScoin, value: 12_345));
         props.WriteTo(state);
 
         var cloned = NetPlayerState.Parser.ParseFrom(state.ToByteArray());
         var restored = PlayerProps.FromState(cloned);
 
-        Assert.Equal(5, restored.Get(PlayerProperty.PlayerWorldLevel));
-        Assert.Equal(12_345, restored.Get(PlayerProperty.PlayerScoin));
-        Assert.Equal(60, restored.Get(PlayerProperty.PlayerLevel));
+        Assert.Equal(expected: 5, restored.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Equal(expected: 12_345, restored.Get(PlayerProperty.PlayerScoin));
+        Assert.Equal(expected: 60, restored.Get(PlayerProperty.PlayerLevel));
     }
 
     [Fact]
@@ -86,14 +86,14 @@ public sealed class PlayerPropsTests
         var state = new NetPlayerState();
         var props = PlayerProps.FromState(state);
 
-        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, 5));
+        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, value: 5));
         props.WriteTo(state);
-        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, 7));
+        Assert.Null(props.TrySet(PlayerProperty.PlayerWorldLevel, value: 7));
         props.WriteTo(state);
 
         var restored = PlayerProps.FromState(NetPlayerState.Parser.ParseFrom(state.ToByteArray()));
 
-        Assert.Equal(7, restored.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Equal(expected: 7, restored.Get(PlayerProperty.PlayerWorldLevel));
         Assert.Single(restored.Explicit);
     }
 
@@ -122,7 +122,7 @@ public sealed class PlayerPropsTests
         var state = new NetPlayerState();
         var cheats = new CheatToggles();
 
-        cheats.Set(CheatToggle.GodMode, false);
+        cheats.Set(CheatToggle.GodMode, value: false);
         cheats.WriteTo(state);
 
         var restored = new CheatToggles();
@@ -138,10 +138,10 @@ public sealed class PlayerPropsTests
         var changes = 0;
         cheats.Changed += () => changes++;
 
-        cheats.Set(CheatToggle.GodMode, true);
-        Assert.Equal(0, changes);
+        cheats.Set(CheatToggle.GodMode, value: true);
+        Assert.Equal(expected: 0, changes);
 
-        cheats.Set(CheatToggle.GodMode, false);
-        Assert.Equal(1, changes);
+        cheats.Set(CheatToggle.GodMode, value: false);
+        Assert.Equal(expected: 1, changes);
     }
 }

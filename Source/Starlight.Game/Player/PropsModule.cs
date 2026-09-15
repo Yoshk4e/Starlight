@@ -1,25 +1,25 @@
 using Starlight.Game.Modules;
 using Starlight.Protocol;
-using Starlight.Rpc.Proto;
 
 namespace Starlight.Game.Player;
 
 public sealed class PropsModule(IPlayer player) : IModule
 {
     private PlayerProps? _props;
-    private readonly CheatToggles _cheats = new();
 
     public PlayerProps Props
     {
-        get {
+        get
+        {
             if (_props is not null)
                 return _props;
 
-            lock (player.StateLock) {
+            lock (player.StateLock)
+            {
                 if (_props is not null)
                     return _props;
 
-                _cheats.Load(player.State);
+                Cheats.Load(player.State);
                 _props = PlayerProps.FromState(player.State);
             }
 
@@ -27,13 +27,14 @@ public sealed class PropsModule(IPlayer player) : IModule
         }
     }
 
-    public CheatToggles Cheats => _cheats;
+    public CheatToggles Cheats { get; } = new();
 
     public async Task<string?> SetPropAsync(PlayerProperty prop, long value)
     {
         long previous;
 
-        lock (player.StateLock) {
+        lock (player.StateLock)
+        {
             previous = Props.Get(prop);
 
             var error = Props.TrySet(prop, value);
@@ -44,7 +45,8 @@ public sealed class PropsModule(IPlayer player) : IModule
             Props.WriteTo(player.State);
         }
 
-        if (ReasonFor(prop) is { } reason) {
+        if (ReasonFor(prop) is {} reason)
+        {
             await player.Send(new PlayerPropChangeReasonNotify {
                 PropType = (uint)prop,
                 Reason = reason,
@@ -77,15 +79,16 @@ public sealed class PropsModule(IPlayer player) : IModule
     {
         bool enabled;
 
-        lock (player.StateLock) {
+        lock (player.StateLock)
+        {
             enabled = value switch {
-                -1 => !_cheats.Get(toggle),
+                -1 => !Cheats.Get(toggle),
                 0 => false,
                 _ => true
             };
 
-            _cheats.Set(toggle, enabled);
-            _cheats.WriteTo(player.State);
+            Cheats.Set(toggle, enabled);
+            Cheats.WriteTo(player.State);
         }
 
         return enabled;

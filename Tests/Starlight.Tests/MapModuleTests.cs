@@ -25,12 +25,12 @@ public sealed class MapModuleTests
 
         var added = await player.Module<MapModule>().UnlockAllAsync(value: -2);
 
-        Assert.Equal(3, added);
+        Assert.Equal(expected: 3, added);
         var unlocks = player.State.SceneUnlocks[3];
         Assert.Equal([1u, 2u, 3u], unlocks.UnlockedPoints.Order());
-        Assert.Equal(999, unlocks.UnlockedAreas.Count);
-        Assert.Equal(1u, unlocks.UnlockedAreas[0]);
-        Assert.Equal(999u, unlocks.UnlockedAreas[^1]);
+        Assert.Equal(expected: 999, unlocks.UnlockedAreas.Count);
+        Assert.Equal(expected: 1u, unlocks.UnlockedAreas[0]);
+        Assert.Equal(expected: 999u, unlocks.UnlockedAreas[^1]);
 
         // The player is not in a scene, so no unlock notify should go out yet.
         Assert.Empty(sent.OfType<ScenePointUnlockNotify>());
@@ -44,7 +44,7 @@ public sealed class MapModuleTests
 
         var added = await player.Module<MapModule>().UnlockAllAsync(value: 1);
 
-        Assert.Equal(2, added);
+        Assert.Equal(expected: 2, added);
         Assert.Equal([1u, 3u], player.State.SceneUnlocks[3].UnlockedPoints.Order());
     }
 
@@ -58,7 +58,7 @@ public sealed class MapModuleTests
         await map.UnlockAllAsync(value: -2);
         var added = await map.UnlockAllAsync(value: -2);
 
-        Assert.Equal(0, added);
+        Assert.Equal(expected: 0, added);
     }
 
     [Fact]
@@ -71,8 +71,8 @@ public sealed class MapModuleTests
         var response = player.Module<MapModule>().OnGetScenePoint(
             new GetScenePointReq { SceneId = 3, BelongUid = 1001, IsRelogin = false });
 
-        Assert.Equal(3u, response.SceneId);
-        Assert.Equal(1001u, response.BelongUid);
+        Assert.Equal(expected: 3u, response.SceneId);
+        Assert.Equal(expected: 1001u, response.BelongUid);
         Assert.Equal([1u, 2u, 3u], response.UnlockedPointList.Order());
         Assert.Equal(response.UnlockedPointList.Order(), response.UnhidePointList.Order());
 
@@ -101,8 +101,8 @@ public sealed class MapModuleTests
 
         var response = player.Module<MapModule>().OnGetSceneArea(new GetSceneAreaReq { SceneId = 3 });
 
-        Assert.Equal(3u, response.SceneId);
-        Assert.Equal(999, response.AreaIdList.Count);
+        Assert.Equal(expected: 3u, response.SceneId);
+        Assert.Equal(expected: 999, response.AreaIdList.Count);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class MapModuleTests
         var cloned = NetPlayerState.Parser.ParseFrom(player.State.ToByteArray());
 
         Assert.Equal([1u, 3u], cloned.SceneUnlocks[3].UnlockedPoints.Order());
-        Assert.Contains(500u, cloned.SceneUnlocks[3].UnlockedAreas);
+        Assert.Contains(expected: 500u, cloned.SceneUnlocks[3].UnlockedAreas);
     }
 
     private static GameData Data()
@@ -123,9 +123,9 @@ public sealed class MapModuleTests
         var data = new GameData(new ConfigurationBuilder().Build());
 
         data.ScenePoints[3] = new Dictionary<uint, PointData> {
-            [1] = new PointData { PointId = 1, SceneId = 3, AreaId = 1 },
-            [2] = new PointData { PointId = 2, SceneId = 3, AreaId = 1, ForbidSimpleUnlock = true },
-            [3] = new PointData { PointId = 3, SceneId = 3, AreaId = 2 }
+            [1] = new() { PointId = 1, SceneId = 3, AreaId = 1 },
+            [2] = new() { PointId = 2, SceneId = 3, AreaId = 1, ForbidSimpleUnlock = true },
+            [3] = new() { PointId = 3, SceneId = 3, AreaId = 2 }
         };
 
         return data;

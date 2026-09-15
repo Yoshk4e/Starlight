@@ -89,7 +89,9 @@ public sealed class PlayerModule(
         };
 
         foreach (var (id, value) in player.Module<PropsModule>().Props.Snapshot())
+        {
             playerData.PropMap[id] = value;
+        }
 
         await player.Send(playerData);
 

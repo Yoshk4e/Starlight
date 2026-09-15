@@ -1,12 +1,13 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Starlight.Commands;
 using Starlight.Game.Modules;
 using Starlight.Game.Player;
 using Starlight.Game.Resources;
+using Starlight.Game.Resources.Binary;
 using Starlight.Game.World;
 using Starlight.Protocol;
 using Starlight.Rpc;
-using Starlight.Rpc.Proto;
 using Starlight.Rpc.Tunnel;
 using Xunit;
 using IMessage = Starlight.Protobuf.Core.IMessage;
@@ -25,12 +26,12 @@ public sealed class PropCommandTests
         await new PropCommand(players).ExecuteAsync(Context(CommandSource.Player, player), ["wl", "5"]);
 
         var notify = Assert.IsType<PlayerPropNotify>(Assert.Single(sent.OfType<PlayerPropNotify>()));
-        Assert.Equal(5, notify.PropMap[(uint)PlayerProperty.PlayerWorldLevel].Val);
-        Assert.Equal(5, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Equal(expected: 5, notify.PropMap[(uint)PlayerProperty.PlayerWorldLevel].Val);
+        Assert.Equal(expected: 5, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
 
         var change = Assert.IsType<PlayerPropChangeNotify>(Assert.Single(sent.OfType<PlayerPropChangeNotify>()));
         Assert.Equal((uint)PlayerProperty.PlayerWorldLevel, change.PropType);
-        Assert.Equal(4u, change.PropDelta);
+        Assert.Equal(expected: 4u, change.PropDelta);
     }
 
     [Fact]
@@ -41,11 +42,12 @@ public sealed class PropCommandTests
         Assert.True(players.Add(player));
 
         var output = new RecordingOutput();
+
         await new PropCommand(players).ExecuteAsync(
             new CommandContext(CommandSource.Console, output, CancellationToken.None), ["1001", "wl", "3"]);
 
         Assert.Contains(output.Messages, message => message.Message.Contains("set to 3"));
-        Assert.Equal(3, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Equal(expected: 3, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
         Assert.Single(sent.OfType<PlayerPropNotify>());
     }
 
@@ -53,6 +55,7 @@ public sealed class PropCommandTests
     public async Task Execute_UnknownUid_WarnsPlayerNotOnline()
     {
         var output = new RecordingOutput();
+
         await new PropCommand(new PlayerManager()).ExecuteAsync(
             new CommandContext(CommandSource.Console, output, CancellationToken.None), ["1001", "wl", "3"]);
 
@@ -74,7 +77,7 @@ public sealed class PropCommandTests
         var message = Assert.Single(output.Messages);
         Assert.Equal(CommandOutputLevel.Warning, message.Level);
         Assert.Contains("between 0 and 8", message.Message);
-        Assert.Equal(1, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
+        Assert.Equal(expected: 1, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerWorldLevel));
     }
 
     [Theory]
@@ -87,7 +90,7 @@ public sealed class PropCommandTests
         var (player, _) = Player(uid: 1001);
         Assert.True(players.Add(player));
 
-        player.Module<PropsModule>().SetToggle(CheatToggle.GodMode, 1);
+        player.Module<PropsModule>().SetToggle(CheatToggle.GodMode, value: 1);
 
         await new PropCommand(players).ExecuteAsync(Context(CommandSource.Player, player), [alias, value]);
 
@@ -123,7 +126,7 @@ public sealed class PropCommandTests
 
         await new PropCommand(players).ExecuteAsync(Context(CommandSource.Player, player), ["playerresin", "160"]);
 
-        Assert.Equal(160, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerResin));
+        Assert.Equal(expected: 160, player.Module<PropsModule>().Props.Get(PlayerProperty.PlayerResin));
     }
 
     [Fact]
@@ -135,7 +138,7 @@ public sealed class PropCommandTests
 
         await new PropCommand(players).ExecuteAsync(Context(CommandSource.Player, player), ["fly", "off"]);
 
-        Assert.Equal(0, player.Module<PropsModule>().Props.Get(PlayerProperty.IsFlyable));
+        Assert.Equal(expected: 0, player.Module<PropsModule>().Props.Get(PlayerProperty.IsFlyable));
         Assert.Single(sent.OfType<PlayerPropNotify>());
     }
 
@@ -149,9 +152,9 @@ public sealed class PropCommandTests
         await new PropCommand(players).ExecuteAsync(Context(CommandSource.Player, player), ["dive", "on"]);
 
         var props = player.Module<PropsModule>().Props;
-        Assert.Equal(1, props.Get(PlayerProperty.IsDiveable));
-        Assert.Equal(10_000, props.Get(PlayerProperty.MaxDiveStamina));
-        Assert.Equal(10_000, props.Get(PlayerProperty.CurPersistDiveStamina));
+        Assert.Equal(expected: 1, props.Get(PlayerProperty.IsDiveable));
+        Assert.Equal(expected: 10_000, props.Get(PlayerProperty.MaxDiveStamina));
+        Assert.Equal(expected: 10_000, props.Get(PlayerProperty.CurPersistDiveStamina));
     }
 
     [Fact]
@@ -203,8 +206,9 @@ public sealed class PropCommandTests
     public async Task Execute_UnlockMapAlias_UnlocksAllPoints()
     {
         var players = new PlayerManager();
-        var data = new GameData(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
-        data.ScenePoints[3] = new Dictionary<uint, Starlight.Game.Resources.Binary.PointData> {
+        var data = new GameData(new ConfigurationBuilder().Build());
+
+        data.ScenePoints[3] = new Dictionary<uint, PointData> {
             [1] = new() { PointId = 1, SceneId = 3, AreaId = 1 },
             [2] = new() { PointId = 2, SceneId = 3, AreaId = 1, ForbidSimpleUnlock = true }
         };
@@ -223,7 +227,8 @@ public sealed class PropCommandTests
     private static CommandContext Context(
         CommandSource source,
         IPlayer player,
-        ICommandOutput? output = null)
+        ICommandOutput? output = null
+    )
         => new(source, output ?? NullCommandOutput.Instance, CancellationToken.None, player, player);
 
     private static (StarlightPlayer Player, List<IMessage> Sent) Player(uint uid, GameData? data = null)

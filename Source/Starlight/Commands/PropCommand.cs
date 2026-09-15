@@ -1,5 +1,6 @@
 using Starlight.Game.Player;
 using Starlight.Game.World;
+using Starlight.Protocol;
 
 namespace Starlight.Commands;
 
@@ -11,6 +12,9 @@ public sealed class PropCommand(PlayerManager players) : ICommand
 
     private readonly Dictionary<string, Entry> _entries = BuildEntries();
 
+    private static IEnumerable<string> AdvertisedNames
+        => ["god", "ns", "ue", "um", "fly", "dive", "wl", "<property-name>"];
+
     public string Name => "prop";
     public string Description => "Sets a player property or cheat toggle for an online player.";
     public string Usage => "prop <uid> <prop> <value>";
@@ -21,36 +25,43 @@ public sealed class PropCommand(PlayerManager players) : ICommand
         var player = context.Target ?? context.Invoker;
         var selectorIndex = 0;
 
-        if (player is null) {
-            if (args.Length < 3 || !uint.TryParse(args[0], out var uid) || uid == 0) {
+        if (player is null)
+        {
+            if (args.Length < 3 || !uint.TryParse(args[0], out var uid) || uid == 0)
+            {
                 await UsageError(context);
                 return;
             }
 
-            if (!players.TryGet(uid, out player)) {
+            if (!players.TryGet(uid, out player))
+            {
                 await context.ReplyAsync($"Player '{uid}' is not online.", CommandOutputLevel.Warning);
                 return;
             }
 
             selectorIndex = 1;
-        } else if (args.Length < 1) {
+        } else if (args.Length < 1)
+        {
             await Status(context, player);
             return;
-        } else if (args.Length != 2) {
+        } else if (args.Length != 2)
+        {
             await UsageError(context);
             return;
         }
 
         var name = args[selectorIndex].ToLowerInvariant();
 
-        if (!_entries.TryGetValue(name, out var entry)) {
+        if (!_entries.TryGetValue(name, out var entry))
+        {
             await context.ReplyAsync(
                 $"'{name}' is not a known prop. Usable: {string.Join(", ", AdvertisedNames)}.",
                 CommandOutputLevel.Warning);
             return;
         }
 
-        if (!TryParseValue(args[selectorIndex + 1], out var value)) {
+        if (!TryParseValue(args[selectorIndex + 1], out var value))
+        {
             await context.ReplyAsync(
                 $"'{args[selectorIndex + 1]}' is not a valid value. Use on, off, toggle, all, or a number.",
                 CommandOutputLevel.Warning);
@@ -59,7 +70,8 @@ public sealed class PropCommand(PlayerManager players) : ICommand
 
         var props = player.Module<PropsModule>();
 
-        switch (entry.Kind) {
+        switch (entry.Kind)
+        {
             case EntryKind.NotImplemented:
                 // TODO: Requires a manager that does not exist yet (see entry.RequiredManager).
                 await context.ReplyAsync(
@@ -80,15 +92,17 @@ public sealed class PropCommand(PlayerManager players) : ICommand
             }
 
             case EntryKind.Dive:
-                if (value != OffValue) {
-                    await props.SetPropAsync(Protocol.PlayerProperty.IsDiveable, 1);
-                    await props.SetPropAsync(Protocol.PlayerProperty.MaxDiveStamina, 10_000);
-                    await props.SetPropAsync(Protocol.PlayerProperty.CurPersistDiveStamina, 10_000);
+                if (value != OffValue)
+                {
+                    await props.SetPropAsync(PlayerProperty.IsDiveable, value: 1);
+                    await props.SetPropAsync(PlayerProperty.MaxDiveStamina, value: 10_000);
+                    await props.SetPropAsync(PlayerProperty.CurPersistDiveStamina, value: 10_000);
                     await context.ReplyAsync($"Diving is now enabled for {player.Uid}.");
-                } else {
-                    await props.SetPropAsync(Protocol.PlayerProperty.IsDiveable, 0);
-                    await props.SetPropAsync(Protocol.PlayerProperty.MaxDiveStamina, 0);
-                    await props.SetPropAsync(Protocol.PlayerProperty.CurPersistDiveStamina, 0);
+                } else
+                {
+                    await props.SetPropAsync(PlayerProperty.IsDiveable, value: 0);
+                    await props.SetPropAsync(PlayerProperty.MaxDiveStamina, value: 0);
+                    await props.SetPropAsync(PlayerProperty.CurPersistDiveStamina, value: 0);
                     await context.ReplyAsync($"Diving is now disabled for {player.Uid}.");
                 }
 
@@ -107,22 +121,20 @@ public sealed class PropCommand(PlayerManager players) : ICommand
         }
     }
 
-    private static IEnumerable<string> AdvertisedNames
-        => ["god", "ns", "ue", "um", "fly", "dive", "wl", "<property-name>"];
-
     private async Task Status(CommandContext context, IPlayer player)
     {
         var props = player.Module<PropsModule>();
 
         await context.ReplyAsync(
             $"{player.Uid}: godmode {(props.Cheats.GodMode ? "on" : "off")}, " +
-            $"world level {props.Props.Get(Protocol.PlayerProperty.PlayerWorldLevel)}, " +
-            $"level {props.Props.Get(Protocol.PlayerProperty.PlayerLevel)}.");
+            $"world level {props.Props.Get(PlayerProperty.PlayerWorldLevel)}, " +
+            $"level {props.Props.Get(PlayerProperty.PlayerLevel)}.");
     }
 
     private static bool TryParseValue(string input, out int value)
     {
-        switch (input.ToLowerInvariant()) {
+        switch (input.ToLowerInvariant())
+        {
             case "on":
             case "true":
                 value = 1;
@@ -146,36 +158,55 @@ public sealed class PropCommand(PlayerManager players) : ICommand
     {
         var entries = new Dictionary<string, Entry>();
 
-        foreach (var prop in Enum.GetValues<Protocol.PlayerProperty>()) {
-            if (prop == Protocol.PlayerProperty.None)
+        foreach (var prop in Enum.GetValues<PlayerProperty>())
+        {
+            if (prop == PlayerProperty.None)
                 continue;
 
             entries[prop.ToString().ToLowerInvariant()] = new Entry(prop.ToString(), EntryKind.Property, prop);
         }
 
-        void Add(string displayName, EntryKind kind, IEnumerable<string> aliases,
-            Protocol.PlayerProperty property = default, CheatToggle? toggle = null,
-            string? requiredManager = null)
+        void Add(
+            string displayName,
+            EntryKind kind,
+            IEnumerable<string> aliases,
+            PlayerProperty property = default,
+            CheatToggle? toggle = null,
+            string? requiredManager = null
+        )
         {
             var entry = new Entry(displayName, kind, property, toggle, requiredManager);
 
             foreach (var alias in aliases)
+            {
                 entries[alias] = entry;
+            }
         }
 
-        Add("World Level", EntryKind.Property, ["wl", "worldlevel"], Protocol.PlayerProperty.PlayerWorldLevel);
+        Add("World Level", EntryKind.Property, ["wl", "worldlevel"], PlayerProperty.PlayerWorldLevel);
         Add("GodMode", EntryKind.Toggle, ["god", "godmode"], toggle: CheatToggle.GodMode);
+
         Add("UnlimitedStamina", EntryKind.NotImplemented,
             ["ns", "us", "nostamina", "nostam", "unlimitedstamina"], requiredManager: "a StaminaManager");
+
         Add("UnlimitedEnergy", EntryKind.NotImplemented, ["ue", "unlimitedenergy"],
             requiredManager: "an EnergyManager");
         Add("UnlockMap", EntryKind.Map, ["um", "unlockmap"]);
+
         Add("IsFlyable", EntryKind.Property, ["fly", "canfly", "glider", "canglide"],
-            Protocol.PlayerProperty.IsFlyable);
+            PlayerProperty.IsFlyable);
         Add("Diving", EntryKind.Dive, ["dive", "swim", "water", "candive"]);
 
         return entries;
     }
+
+    private async ValueTask UsageError(CommandContext context)
+        => await context.ReplyAsync($"Usage: {UsageFor(context)}", CommandOutputLevel.Warning);
+
+    private string UsageFor(CommandContext context)
+        => context.Target is not null || context.Invoker is not null ?
+            "prop <prop> <on|off|toggle|all|value>" :
+            Usage;
 
     private enum EntryKind
     {
@@ -189,15 +220,8 @@ public sealed class PropCommand(PlayerManager players) : ICommand
     private sealed record Entry(
         string DisplayName,
         EntryKind Kind,
-        Protocol.PlayerProperty Property = default,
+        PlayerProperty Property = default,
         CheatToggle? Toggle = null,
-        string? RequiredManager = null);
-
-    private async ValueTask UsageError(CommandContext context)
-        => await context.ReplyAsync($"Usage: {UsageFor(context)}", CommandOutputLevel.Warning);
-
-    private string UsageFor(CommandContext context)
-        => context.Target is not null || context.Invoker is not null ?
-            "prop <prop> <on|off|toggle|all|value>" :
-            Usage;
+        string? RequiredManager = null
+    );
 }

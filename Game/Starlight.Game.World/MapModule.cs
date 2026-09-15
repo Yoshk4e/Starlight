@@ -50,7 +50,6 @@ public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
         };
     }
 
-
     public async Task<int> UnlockAllAsync(int value)
     {
         var gameData = data;
@@ -60,13 +59,16 @@ public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
 
         var added = 0;
 
-        lock (player.StateLock) {
+        lock (player.StateLock)
+        {
             LoadState();
 
-            foreach (var (sceneId, points) in gameData.ScenePoints) {
+            foreach (var (sceneId, points) in gameData.ScenePoints)
+            {
                 var unlocks = EnsureUnlocks(sceneId);
 
-                foreach (var (pointId, point) in points) {
+                foreach (var (pointId, point) in points)
+                {
                     if (value != -2 && point.ForbidSimpleUnlock)
                         continue;
 
@@ -82,10 +84,10 @@ public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
             }
         }
 
-
         var scene = player.Module<WorldModule>().Scene;
 
-        if (scene is not null && _unlocks.TryGetValue(scene.Id, out var current)) {
+        if (scene is not null && _unlocks.TryGetValue(scene.Id, out var current))
+        {
             await player.Send(new ScenePointUnlockNotify {
                 SceneId = scene.Id,
                 PointList = [.. current.UnlockedPoints]
@@ -105,14 +107,17 @@ public sealed class MapModule(IPlayer player, GameData? data = null) : IModule
         if (_loaded)
             return;
 
-        lock (player.StateLock) {
+        lock (player.StateLock)
+        {
             if (_loaded)
                 return;
 
             _loaded = true;
 
             foreach (var (sceneId, unlocks) in player.State.SceneUnlocks)
+            {
                 _unlocks[sceneId] = unlocks;
+            }
         }
     }
 

@@ -12,7 +12,6 @@ using Starlight.Game.World;
 using Starlight.Protocol;
 using Starlight.Protocol.V70;
 using Starlight.Rpc;
-using Starlight.Rpc.Proto;
 using Starlight.Rpc.Tunnel;
 using Xunit;
 using IMessage = Starlight.Protobuf.Core.IMessage;
@@ -148,6 +147,7 @@ public sealed class GodModeTests
         var initializer = new AbilityInitializer(data);
 
         registry.AddModule<WorldModule>((_, player) => new WorldModule(player, worlds));
+
         registry.AddModule<AbilityModule>((_, player) => new AbilityModule(
             player,
             initializer,

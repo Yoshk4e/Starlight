@@ -1,6 +1,5 @@
 namespace Starlight.Protocol;
 
-
 public static class PlayerPropertyInfo
 {
     private const long UnboundedMin = long.MinValue;

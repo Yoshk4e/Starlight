@@ -3,7 +3,6 @@ using Starlight.Rpc.Proto;
 
 namespace Starlight.Game.Player;
 
-
 public sealed class PlayerProps
 {
     private static readonly Dictionary<uint, long> Defaults = new() {
@@ -46,10 +45,14 @@ public sealed class PlayerProps
     public IEnumerable<KeyValuePair<uint, PropValue>> Snapshot()
     {
         foreach (var (id, value) in Defaults)
+        {
             yield return new KeyValuePair<uint, PropValue>(id, ((PlayerProperty)id).Value(value));
+        }
 
         foreach (var (id, value) in _explicit)
+        {
             yield return new KeyValuePair<uint, PropValue>(id, ((PlayerProperty)id).Value(value));
+        }
     }
 
     public static PlayerProps FromState(NetPlayerState state)
@@ -57,7 +60,9 @@ public sealed class PlayerProps
         var props = new PlayerProps();
 
         foreach (var (id, value) in state.PropValues)
+        {
             props._explicit[id] = value;
+        }
 
         return props;
     }
@@ -67,7 +72,9 @@ public sealed class PlayerProps
         state.PropValues.Clear();
 
         foreach (var (id, value) in _explicit)
+        {
             state.PropValues[id] = value;
+        }
     }
 
     private long Max(PlayerProperty prop)

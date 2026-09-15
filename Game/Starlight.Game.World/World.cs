@@ -44,7 +44,7 @@ public sealed class World
 
     public bool IsAvatarProtected(SceneEntity entity)
         => entity is AvatarEntity { Info.Avatar: {} sceneAvatar }
-            && (PlayerByUid(sceneAvatar.Uid)?.Module<PropsModule>().Cheats.GodMode ?? true);
+           && (PlayerByUid(sceneAvatar.Uid)?.Module<PropsModule>().Cheats.GodMode ?? true);
 
     public uint TeamEntityIdOf(IPlayer player)
     {

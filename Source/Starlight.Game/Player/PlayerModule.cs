@@ -83,20 +83,15 @@ public sealed class PlayerModule(
 
         await player.Send(OpenStates());
 
-        await player.Send(new PlayerDataNotify {
+        var playerData = new PlayerDataNotify {
             NickName = nickname,
-            ServerTime = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            PropMap = {
-                [(uint)PlayerProperty.IsFlyable] = PlayerProperty.IsFlyable.Value(1),
-                [(uint)PlayerProperty.IsTransferable] = PlayerProperty.IsTransferable.Value(1),
-                [(uint)PlayerProperty.IsDiveable] = PlayerProperty.IsDiveable.Value(1),
-                [(uint)PlayerProperty.Level] = PlayerProperty.PlayerLevel.Value(60),
-                [(uint)PlayerProperty.Exp] = PlayerProperty.PlayerExp.Value(0),
-                [(uint)PlayerProperty.CurPersistStamina] = PlayerProperty.CurPersistStamina.Value(24000),
-                [(uint)PlayerProperty.MaxStamina] = PlayerProperty.MaxStamina.Value(24000),
-                [(uint)PlayerProperty.PlayerWorldLevel] = PlayerProperty.PlayerWorldLevel.Value(1)
-            }
-        });
+            ServerTime = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        foreach (var (id, value) in player.Module<PropsModule>().Props.Snapshot())
+            playerData.PropMap[id] = value;
+
+        await player.Send(playerData);
 
         // Everything that has to be in place before the client is told it is logged in.
         await player.Emit(LifecycleEvent.PlayerLogin);

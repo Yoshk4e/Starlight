@@ -40,6 +40,18 @@ message NetPlayerState {
   uint32 current_avatar_team_id = 7;
   repeated uint32 unlocked_name_card_ids = 8;
   repeated uint32 unlocked_profile_picture_ids = 9;
+  map<uint32, int64> prop_values = 10;
+  NetCheatToggles cheats = 11;
+  map<uint32, NetSceneUnlocks> scene_unlocks = 12;
+}
+
+message NetCheatToggles {
+  optional bool god_mode = 1;
+}
+
+message NetSceneUnlocks {
+  repeated uint32 unlocked_points = 1;
+  repeated uint32 unlocked_areas = 2;
 }
 
 message NetAvatarTeam {

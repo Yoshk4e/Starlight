@@ -75,8 +75,7 @@ public sealed class Scene(World world, uint sceneId)
         if (attack.DefenseId == 0 || !TryGetEntity(attack.DefenseId, out var target))
             return default;
 
-        // Temporary godmode until avatar lifesycle is implemented.
-        if (target is AvatarEntity)
+        if (world.IsAvatarProtected(target))
             return default;
 
         var damage = target.Damage(attack.Damage);

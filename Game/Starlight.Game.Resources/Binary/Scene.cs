@@ -18,7 +18,8 @@ public sealed class PointData
     public string MarkIconTypeName { get; set; } = string.Empty;
     [JsonPropertyName("$type")]
     public string Type { get; set; } = string.Empty;
-
+    [JsonPropertyName("forbidSimpleUnlock")]
+    public bool ForbidSimpleUnlock { get; set; }
     [JsonPropertyName("pos")] public Position PointPos { get; set; } = new();
     [JsonPropertyName("tranPos")] public Position TeleportPos { get; set; } = new();
     [JsonPropertyName("dungeonIds")] public List<uint> DungeonIds { get; set; } = [];

@@ -31,6 +31,21 @@ public sealed class World
 
     public uint PeerIdOf(IPlayer player) => _peerIds.GetValueOrDefault(player);
 
+    public IPlayer? PlayerByUid(uint uid)
+    {
+        foreach (var peer in _peers.Values)
+        {
+            if (peer.Uid == uid)
+                return peer;
+        }
+
+        return null;
+    }
+
+    public bool IsAvatarProtected(SceneEntity entity)
+        => entity is AvatarEntity { Info.Avatar: {} sceneAvatar }
+            && (PlayerByUid(sceneAvatar.Uid)?.Module<PropsModule>().Cheats.GodMode ?? true);
+
     public uint TeamEntityIdOf(IPlayer player)
     {
         if (!_teamEntityIds.TryGetValue(player, out var entityId))
